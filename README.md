@@ -7,3 +7,6 @@ La musique de la victoire n'est pas indispensable.
 
 ## Le code est exclusivement généré par IA
 Ce projet reste du code 100% IA, à vos risques et périls !
+
+## Exemple
+![Rouedah](output.gif)
