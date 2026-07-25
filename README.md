@@ -1,5 +1,5 @@
 ## Version
-version actuelle en beta : **0.3.4**
+version actuelle en beta : **0.3.5**
 
 ## rouedah
 Faire tourner une roue pour laisser le destin choisir.
