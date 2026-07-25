@@ -15,6 +15,6 @@ Ce projet reste du code 100% IA, à vos risques et périls !
 
 ## Exemple
 - [mon site pour tester](https://rouedah.flens.dev/)
-- exemple de la version 0.3.2
+- exemple de la version 0.3.5
 
-![Rouedah](output.gif)
+![exemple.gif](exemple.0.3.5.gif)
