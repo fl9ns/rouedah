@@ -56,7 +56,7 @@
       position: relative;
       width: 660px;
       height: 660px;
-      margin-bottom: 10px;
+      margin-bottom: 20px;
     }
     .arrow {
       position: absolute;
@@ -88,7 +88,7 @@
     .wheel-hint {
       font-size: 0.78rem;
       color: var(--text-muted);
-      margin-bottom: 10px;
+      margin-bottom: 20px;
       text-align: center;
     }
 
@@ -209,9 +209,15 @@
     }
     .action-buttons-group {
       display: flex;
+      justify-content: center;
       gap: 10px;
       width: 100%;
       margin-bottom: 10px;
+    }
+    #spinBtn {
+      width: auto;
+      min-width: 260px;
+      padding: 10px 28px;
     }
     button {
       background: var(--primary);
@@ -262,9 +268,12 @@
       display: flex;
       flex-direction: column;
     }
-    .panel-add,
     .panel-history {
       height: 480px;
+    }
+    .panel-add {
+      flex: 1;
+      min-height: 0;
     }
     .panel-header {
       display: flex;
@@ -379,7 +388,24 @@
       text-align: center;
       font-size: 0.78rem;
       color: var(--text-muted);
-      margin-top: -2px;
+      margin-top: 10px;
+    }
+    .panel-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .imdb-btn {
+      color: #fbbf24;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-style: italic;
+    }
+    .imdb-btn:hover {
+      background: rgba(251, 191, 36, 0.15);
     }
     .context-menu {
       position: fixed;
@@ -536,6 +562,10 @@
         <button id="muteBtn" class="mute-btn" title="Couper tout le son">🔊</button>
       </div>
     </div>
+
+    <div class="app-version">
+      Rouedah · version 0.3.3 · kick.com/redkhey
+    </div>
   </div>
 
   <div class="sidebar">
@@ -556,12 +586,12 @@
     <div class="panel panel-history">
       <div class="panel-header">
         <h3>Historique des cases</h3>
-        <button id="clearHistoryBtn" class="clear-all-btn">Effacer</button>
+        <div class="panel-header-actions">
+          <button id="addAllHistoryBtn" class="clear-all-btn" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">Tout ajouter</button>
+          <button id="clearHistoryBtn" class="clear-all-btn">Effacer</button>
+        </div>
       </div>
       <ul id="historyList"></ul>
-    </div>
-    <div class="app-version">
-      Rouedah · version 0.3.2 · kick.com/redkhey
     </div>
   </div>
 </div>
@@ -831,6 +861,7 @@
   const nextWinOverlay = document.getElementById('nextWinOverlay');
   const clearActiveBtn = document.getElementById('clearActiveBtn');
   const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+  const addAllHistoryBtn = document.getElementById('addAllHistoryBtn');
   const contextMenu = document.getElementById('contextMenu');
   const ctxEdit = document.getElementById('ctxEdit');
   const ctxDelete = document.getElementById('ctxDelete');
@@ -934,6 +965,29 @@
     return (canvas.width / 2) - 8;
   }
 
+  // Dessine le contour d'une seule case, par-dessus toutes les cases déjà tracées.
+  function drawSliceOutline(index, sliceAngle, center, radius, color, lineWidth) {
+    const angle = currentRotation + index * sliceAngle;
+    ctx.beginPath();
+    ctx.moveTo(center, center);
+    ctx.arc(center, center, radius, angle, angle + sliceAngle);
+    ctx.closePath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+
+  // Raccourcit le texte (avec le contexte de police déjà appliqué sur ctx) pour
+  // qu'il tienne dans maxWidth, en ajoutant "..." si besoin.
+  function truncateTextToWidth(text, maxWidth) {
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    let truncated = text;
+    while (truncated.length > 1 && ctx.measureText(truncated + '...').width > maxWidth) {
+      truncated = truncated.slice(0, -1);
+    }
+    return truncated + '...';
+  }
+
   function drawWheel() {
     const numItems = items.length;
     const width = canvas.width;
@@ -955,11 +1009,11 @@
     
     const sliceAngle = TWO_PI / numItems;
     
+    const maxTextWidth = radius - 18 - 5;
+
     items.forEach((item, i) => {
       const angle = currentRotation + i * sliceAngle;
-      const isSelected = (i === selectedSliceIndex);
       const isNextWinSlice = item.text.trim().toLowerCase() === "le prochain gagne";
-      const isWinningSliceInSuspense = isSuspense && (i === winningIndex);
 
       ctx.beginPath();
       
@@ -999,16 +1053,8 @@
         ctx.restore();
       }
       
-      if (isWinningSliceInSuspense) {
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 8;
-      } else if (isSelected) {
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 6;
-      } else {
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 2;
-      }
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 2;
       ctx.stroke();
       
       ctx.save();
@@ -1025,8 +1071,7 @@
         ctx.fillStyle = `rgba(0, 0, 0, ${textAlpha})`;
         ctx.shadowColor = 'transparent';
         
-        let text = item.text;
-        if (text.length > 35) text = text.substring(0, 32) + '...';
+        const text = truncateTextToWidth(item.text, maxTextWidth);
         
         ctx.fillText(text, radius - 18, 6);
       } else {
@@ -1034,13 +1079,22 @@
         ctx.shadowColor = 'transparent';
         const fontSize = Math.max(12, Math.min(18, 330 / numItems));
         ctx.font = `600 ${fontSize}px system-ui`;
-        let text = item.text;
-        if (text.length > 35) text = text.substring(0, 32) + '...';
+        const text = truncateTextToWidth(item.text, maxTextWidth);
         ctx.fillText(text, radius - 18, 6);
       }
       
       ctx.restore();
     });
+
+    // Contour de sélection (clic droit), dessiné par-dessus toutes les cases.
+    if (selectedSliceIndex !== null && items[selectedSliceIndex]) {
+      drawSliceOutline(selectedSliceIndex, sliceAngle, center, radius, '#38bdf8', 5);
+    }
+
+    // Contour de la case gagnante en fin de rotation, dessiné par-dessus toutes les cases.
+    if (isSuspense && winningIndex !== null && items[winningIndex]) {
+      drawSliceOutline(winningIndex, sliceAngle, center, radius, '#ef4444', 5);
+    }
   }
 
   setInterval(() => {
@@ -1342,6 +1396,7 @@
           </div>
           <div class="action-group">
             <button class="action-btn add-back-btn" title="Ajouter à la roue" onclick="readdFromHistory(${realIndex})">＋</button>
+            <a class="action-btn imdb-btn" href="https://www.imdb.com/fr/find/?q=${encodeURIComponent(item.text)}" target="_blank" rel="noopener noreferrer" title="Rechercher sur IMDB">i</a>
             <button class="action-btn delete-btn" title="Supprimer de l'historique" onclick="deleteHistoryItem(${realIndex})">✕</button>
           </div>
         `;
@@ -1375,6 +1430,28 @@
     saveState();
     renderActiveList();
     renderHistoryList();
+  }
+
+  function addAllFromHistory() {
+    if (isSpinning || isSuspense || historyItems.length === 0) return;
+    let addedAny = false;
+    for (const h of historyItems) {
+      if (items.length >= 100) {
+        showToast("Faut pas abuser des bonnes choses");
+        break;
+      }
+      items.push({
+        id: Date.now() + Math.random(),
+        text: h.text,
+        date: new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+      });
+      addedAny = true;
+    }
+    if (addedAny) {
+      assignHarmoniousColors(items);
+      saveState();
+      renderActiveList();
+    }
   }
 
   window.removeActiveItem = function(index) {
@@ -1476,6 +1553,7 @@
     );
   });
 
+  addAllHistoryBtn.addEventListener('click', addAllFromHistory);
   addNextWinBtn.addEventListener('click', () => addItem("Le prochain gagne"));
   spinBtn.addEventListener('click', spin);
   addBtn.addEventListener('click', () => addItem());
