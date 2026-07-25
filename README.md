@@ -1,5 +1,5 @@
 ## Version
-version actuelle en beta : **0.3.2**
+version actuelle en beta : **0.3.3**
 
 ## rouedah
 Faire tourner une roue pour laisser le destin choisir.
@@ -15,5 +15,6 @@ Ce projet reste du code 100% IA, à vos risques et périls !
 
 ## Exemple
 - [mon site pour tester](https://rouedah.flens.dev/)
+- exemple de la version 0.3.2
 
 ![Rouedah](output.gif)
