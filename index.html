@@ -356,6 +356,10 @@
       min-width: 0;
       word-break: break-word;
     }
+    .count-badge {
+      color: var(--text-muted);
+      font-weight: 700;
+    }
     .action-group {
       display: flex;
       align-items: center;
@@ -571,7 +575,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.3.5 · kick.com/redkhey
+      Rouedah · version 0.3.6 · kick.com/redkhey
     </div>
   </div>
 
@@ -595,6 +599,9 @@
 <!-- Menus et Modales -->
 <div id="contextMenu" class="context-menu">
   <div class="context-menu-item" id="ctxEdit">Modifier la case</div>
+  <div class="context-menu-item" id="ctxDuplicate">Ajouter un doublon</div>
+  <div class="context-menu-item" id="ctxImdb">Recherche IMDB</div>
+  <div class="context-menu-item" id="ctxTmdb">Recherche TMDB</div>
   <div class="context-menu-item danger" id="ctxDelete">Supprimer la case</div>
 </div>
 <div id="toastNotification" class="toast-notification">Notification</div>
@@ -860,6 +867,9 @@
   const addAllHistoryBtn = document.getElementById('addAllHistoryBtn');
   const contextMenu = document.getElementById('contextMenu');
   const ctxEdit = document.getElementById('ctxEdit');
+  const ctxDuplicate = document.getElementById('ctxDuplicate');
+  const ctxImdb = document.getElementById('ctxImdb');
+  const ctxTmdb = document.getElementById('ctxTmdb');
   const ctxDelete = document.getElementById('ctxDelete');
   const modal = document.getElementById('resultModal');
   const modalTitle = document.getElementById('modalTitle');
@@ -1153,8 +1163,12 @@
     const clickedItem = items[selectedSliceIndex];
     if (clickedItem && clickedItem.text.trim().toLowerCase() === "le prochain gagne") {
       ctxEdit.classList.add('disabled');
+      ctxImdb.classList.add('disabled');
+      ctxTmdb.classList.add('disabled');
     } else {
       ctxEdit.classList.remove('disabled');
+      ctxImdb.classList.remove('disabled');
+      ctxTmdb.classList.remove('disabled');
     }
 
     drawWheel();
@@ -1182,12 +1196,18 @@
     if (items[index].text.trim().toLowerCase() === "le prochain gagne") return;
     
     const currentText = items[index].text;
-    const currentId = items[index].id;
+    const currentKey = currentText.trim().toLowerCase();
     const newText = prompt('Modifier le nom de la case :', currentText);
     if (newText !== null && newText.trim() !== '') {
       const trimmed = newText.trim();
-      items[index].text = trimmed;
-      const histItem = historyItems.find(h => h.id === currentId || h.text.trim().toLowerCase() === currentText.trim().toLowerCase());
+      // Renomme toutes les cases identiques (les doublons) présentes sur la roue.
+      items.forEach(item => {
+        if (item.text.trim().toLowerCase() === currentKey) {
+          item.text = trimmed;
+        }
+      });
+      // Met à jour la ligne correspondante dans l'historique, en gardant sa date.
+      const histItem = historyItems.find(h => h.text.trim().toLowerCase() === currentKey);
       if (histItem) histItem.text = trimmed;
       historyItems = filterUniqueHistory(historyItems);
       saveState();
@@ -1196,39 +1216,87 @@
     }
   });
 
+  ctxDuplicate.addEventListener('click', () => {
+    const index = selectedSliceIndex;
+    closeContextMenu();
+    if (index === null || !items[index]) return;
+    if (items.length >= 100) {
+      showToast("Faut pas abuser des bonnes choses");
+      return;
+    }
+    const original = items[index];
+    items.push({
+      id: Date.now() + Math.random(),
+      text: original.text,
+      date: original.date
+    });
+    assignHarmoniousColors(items);
+    saveState();
+    renderActiveList();
+    renderHistoryList();
+  });
+
+  ctxImdb.addEventListener('click', () => {
+    const index = selectedSliceIndex;
+    closeContextMenu();
+    if (index === null || !items[index]) return;
+    if (items[index].text.trim().toLowerCase() === "le prochain gagne") return;
+    window.open('https://www.imdb.com/fr/find/?q=' + encodeURIComponent(items[index].text), '_blank', 'noopener,noreferrer');
+  });
+
+  ctxTmdb.addEventListener('click', () => {
+    const index = selectedSliceIndex;
+    closeContextMenu();
+    if (index === null || !items[index]) return;
+    if (items[index].text.trim().toLowerCase() === "le prochain gagne") return;
+    window.open('https://www.themoviedb.org/search?language=fr&query=' + encodeURIComponent(items[index].text), '_blank', 'noopener,noreferrer');
+  });
+
   ctxDelete.addEventListener('click', () => {
     const index = selectedSliceIndex;
     closeContextMenu();
     if (index === null || !items[index]) return;
-    const itemToDelete = items[index];
-    openConfirmModal('Supprimer la case ?', `Êtes-vous sûr de vouloir supprimer la case "${itemToDelete.text}" ?`, () => {
-        items.splice(index, 1);
-        assignHarmoniousColors(items);
-        saveState();
-        renderActiveList();
-      }
-    );
+    items.splice(index, 1);
+    assignHarmoniousColors(items);
+    saveState();
+    renderActiveList();
+    renderHistoryList();
   });
 
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   // --- Wheel Spin Logic ---
-  function spin() {
+  async function spin() {
     checkAndCleanNextWin();
     if (isSpinning || isSuspense || items.length < 2) return;
 
     isTwoItemsDuel = (items.length === 2);
 
-    if (items.length >= 2) {
-      shuffleArray(items);
-      saveState();
-      renderActiveList();
-    }
-
-    isSpinning = true;
+    // Désactive les boutons dès le clic, pendant toute la phase de mélange.
     spinBtn.disabled = true;
     shuffleBtn.disabled = true;
     doubleBtn.disabled = true;
     removeDuplicatesBtn.disabled = true;
 
+    // Trois mélanges successifs de la roue, avec de courtes pauses, avant le lancement.
+    shuffleArray(items);
+    saveState();
+    renderActiveList();
+    await wait(100);
+
+    shuffleArray(items);
+    saveState();
+    renderActiveList();
+    await wait(100);
+
+    shuffleArray(items);
+    saveState();
+    renderActiveList();
+    await wait(500);
+
+    isSpinning = true;
     cancelNextWinBtn.style.display = 'none';
 
     let baseDuration = parseInt(durationInput.value, 10);
@@ -1236,6 +1304,13 @@
       const variation = (Math.random() * 4) - 2; 
       baseDuration = Math.max(3, baseDuration + variation);
     }
+
+    // Petite variation secrète de ±0.1 à 0.9s à chaque lancement, toujours
+    // recalculée par rapport au réglage de la jauge (pas cumulative).
+    const jitterAmount = (Math.floor(Math.random() * 9) + 1) / 10;
+    const jitterSign = Math.random() < 0.5 ? -1 : 1;
+    baseDuration = Math.max(1, baseDuration + (jitterSign * jitterAmount));
+
     if (isNextWinActive) {
       baseDuration += 5;
     }
@@ -1350,6 +1425,7 @@
           assignHarmoniousColors(items);
           saveState();
           renderActiveList();
+          renderHistoryList();
         }
         modal.classList.remove('active');
       });
@@ -1369,22 +1445,49 @@
     activeList.innerHTML = '';
     if (items.length === 0) {
       activeList.innerHTML = '<div class="empty-msg">Aucune case active</div>';
-    } else {
-      items.forEach((item, index) => {
-        const isNextWin = item.text.trim().toLowerCase() === "le prochain gagne";
-        const li = document.createElement('li');
-        if (isNextWin) {
-          li.classList.add('next-win-item');
-        }
-        li.innerHTML = `
-          <span class="item-info">${item.text}</span>
-          <div class="action-group">
-            <button class="action-btn delete-btn" onclick="removeActiveItem(${index})">✕</button>
-          </div>
-        `;
-        activeList.appendChild(li);
-      });
+      drawWheel();
+      return;
     }
+
+    // Regroupe les cases identiques (insensible à la casse) en une seule ligne.
+    const groups = new Map();
+    items.forEach(item => {
+      const key = item.text.trim().toLowerCase();
+      if (!groups.has(key)) {
+        groups.set(key, { text: item.text, count: 0 });
+      }
+      groups.get(key).count++;
+    });
+
+    const sortedGroups = Array.from(groups.entries()).sort((a, b) => {
+      if (b[1].count !== a[1].count) return b[1].count - a[1].count;
+      return a[1].text.localeCompare(b[1].text, 'fr', { sensitivity: 'base' });
+    });
+
+    sortedGroups.forEach(([key, group]) => {
+      const isNextWin = key === "le prochain gagne";
+      const li = document.createElement('li');
+      if (isNextWin) {
+        li.classList.add('next-win-item');
+      }
+
+      const info = document.createElement('span');
+      info.className = 'item-info';
+      info.innerHTML = `<span class="count-badge">(x${group.count})</span> ${group.text}`;
+
+      const actionGroup = document.createElement('div');
+      actionGroup.className = 'action-group';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'action-btn delete-btn';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => removeOneActiveItem(key));
+      actionGroup.appendChild(delBtn);
+
+      li.appendChild(info);
+      li.appendChild(actionGroup);
+      activeList.appendChild(li);
+    });
+
     drawWheel();
   }
 
@@ -1395,10 +1498,12 @@
     } else {
       historyItems.slice().reverse().forEach((item, indexFromReversed) => {
         const realIndex = historyItems.length - 1 - indexFromReversed;
+        const key = item.text.trim().toLowerCase();
+        const wheelCount = items.filter(it => it.text.trim().toLowerCase() === key).length;
         const li = document.createElement('li');
         li.innerHTML = `
           <div class="item-info">
-            <strong>${item.text}</strong>
+            <strong><span class="count-badge">(x${wheelCount})</span> ${item.text}</strong>
             <span class="meta-date">${item.date}</span>
           </div>
           <div class="action-group">
@@ -1458,16 +1563,20 @@
       assignHarmoniousColors(items);
       saveState();
       renderActiveList();
+      renderHistoryList();
     }
   }
 
-  window.removeActiveItem = function(index) {
+  function removeOneActiveItem(normalizedKey) {
     if (isSpinning || isSuspense) return;
-    items.splice(index, 1);
+    const idx = items.findIndex(it => it.text.trim().toLowerCase() === normalizedKey);
+    if (idx === -1) return;
+    items.splice(idx, 1);
     assignHarmoniousColors(items);
     saveState();
     renderActiveList();
-  };
+    renderHistoryList();
+  }
 
   window.readdFromHistory = function(index) {
     if (isSpinning || isSuspense) return;
@@ -1511,6 +1620,7 @@
     assignHarmoniousColors(items);
     saveState();
     renderActiveList();
+    renderHistoryList();
   });
 
   removeDuplicatesBtn.addEventListener('click', () => {
@@ -1525,6 +1635,7 @@
     assignHarmoniousColors(items);
     saveState();
     renderActiveList();
+    renderHistoryList();
   });
 
   shuffleBtn.addEventListener('click', () => {
@@ -1543,6 +1654,7 @@
         items = [];
         saveState();
         renderActiveList();
+        renderHistoryList();
       }
     );
   });
