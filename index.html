@@ -87,7 +87,8 @@
       cursor: grabbing;
     }
     .wheel-hint {
-      font-size: 0.78rem;
+      font-size: 0.95rem;
+      font-weight: 600;
       color: var(--text-muted);
       margin-bottom: 20px;
       text-align: center;
@@ -406,6 +407,18 @@
     .imdb-btn:hover {
       background: rgba(251, 191, 36, 0.15);
     }
+    .tmdb-btn {
+      color: #38bdf8;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-style: italic;
+    }
+    .tmdb-btn:hover {
+      background: rgba(56, 189, 248, 0.15);
+    }
     .context-menu {
       position: fixed;
       background: #1e293b;
@@ -440,6 +453,11 @@
     }
     .context-menu-item.danger:hover {
       background: rgba(239, 68, 68, 0.15);
+    }
+    .context-menu-separator {
+      height: 1px;
+      background: #475569;
+      margin: 4px 0;
     }
     .toast-notification {
       position: fixed;
@@ -540,7 +558,8 @@
         <div class="arrow"></div>
         <canvas id="wheel" width="660" height="660"></canvas>
       </div>
-      <div class="wheel-hint">Tu peux faire bouger la roue à la main</div>
+      <!-- Compteur de lancers à la place du texte indicatif -->
+      <div class="wheel-hint" id="spinCounterDisplay">Compteur : 0</div>
     </div>
     
     <div class="controls-row">
@@ -575,7 +594,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.3.6 · kick.com/redkhey
+      Rouedah · version 0.4.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -600,8 +619,10 @@
 <div id="contextMenu" class="context-menu">
   <div class="context-menu-item" id="ctxEdit">Modifier la case</div>
   <div class="context-menu-item" id="ctxDuplicate">Ajouter un doublon</div>
+  <div class="context-menu-separator"></div> <!-- Ajout du séparateur -->
   <div class="context-menu-item" id="ctxImdb">Recherche IMDB</div>
   <div class="context-menu-item" id="ctxTmdb">Recherche TMDB</div>
+  <div class="context-menu-separator"></div> <!-- Ajout du séparateur -->
   <div class="context-menu-item danger" id="ctxDelete">Supprimer la case</div>
 </div>
 <div id="toastNotification" class="toast-notification">Notification</div>
@@ -634,7 +655,8 @@
   const TWO_PI = Math.PI * 2;
 
   // --- Cookies Management ---
-  function setCookie(name, value, days = 365) {
+  // Modification pour rendre le cookie "impérissable" (100 ans par défaut soit 36500 jours)
+  function setCookie(name, value, days = 36500) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
     document.cookie = name + '=' + encodeURIComponent(JSON.stringify(value)) + '; expires=' + expires + '; path=/; SameSite=Strict';
   }
@@ -651,7 +673,7 @@
   let victoryVolume = parseFloat(getCookie('wheel_victory_vol') ?? 0.2);
 
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const victorySound = new Audio('victory-zelda.mp3'); 
+  const victorySound = new Audio('victory-zelda-fix.mp3'); 
   victorySound.volume = victoryVolume;
 
   const tickVolInput = document.getElementById('tickVolInput');
@@ -831,6 +853,14 @@
   
   let savedDuration = getCookie('wheel_duration') || 9;
   let isNextWinActive = getCookie('wheel_next_win') === true;
+
+  // Initialisation du compteur
+  let totalSpins = getCookie('wheel_total_spins') || 0;
+  const spinCounterDisplay = document.getElementById('spinCounterDisplay');
+  function updateSpinCounter() {
+    spinCounterDisplay.textContent = `Compteur : ${totalSpins.toLocaleString('fr-FR')}`;
+  }
+  updateSpinCounter();
   
   let currentRotation = 0;
   let isSpinning = false;
@@ -1274,6 +1304,11 @@
 
     isTwoItemsDuel = (items.length === 2);
 
+    // Incrémentation et sauvegarde du compteur
+    totalSpins++;
+    setCookie('wheel_total_spins', totalSpins);
+    updateSpinCounter();
+
     // Désactive les boutons dès le clic, pendant toute la phase de mélange.
     spinBtn.disabled = true;
     shuffleBtn.disabled = true;
@@ -1509,6 +1544,8 @@
           <div class="action-group">
             <button class="action-btn add-back-btn" title="Ajouter à la roue" onclick="readdFromHistory(${realIndex})">＋</button>
             <a class="action-btn imdb-btn" href="https://www.imdb.com/fr/find/?q=${encodeURIComponent(item.text)}" target="_blank" rel="noopener noreferrer" title="Rechercher sur IMDB">i</a>
+            <!-- Ajout du bouton TMDB -->
+            <a class="action-btn tmdb-btn" href="https://www.themoviedb.org/search?language=fr&query=${encodeURIComponent(item.text)}" target="_blank" rel="noopener noreferrer" title="Rechercher sur TMDB">t</a>
             <button class="action-btn delete-btn" title="Supprimer de l'historique" onclick="deleteHistoryItem(${realIndex})">✕</button>
           </div>
         `;
