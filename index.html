@@ -594,7 +594,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.4.0 · kick.com/redkhey
+      Rouedah · version 0.4.1 · kick.com/redkhey
     </div>
   </div>
 
@@ -619,10 +619,10 @@
 <div id="contextMenu" class="context-menu">
   <div class="context-menu-item" id="ctxEdit">Modifier la case</div>
   <div class="context-menu-item" id="ctxDuplicate">Ajouter un doublon</div>
-  <div class="context-menu-separator"></div> <!-- Ajout du séparateur -->
+  <div class="context-menu-separator"></div>
   <div class="context-menu-item" id="ctxImdb">Recherche IMDB</div>
   <div class="context-menu-item" id="ctxTmdb">Recherche TMDB</div>
-  <div class="context-menu-separator"></div> <!-- Ajout du séparateur -->
+  <div class="context-menu-separator"></div>
   <div class="context-menu-item danger" id="ctxDelete">Supprimer la case</div>
 </div>
 <div id="toastNotification" class="toast-notification">Notification</div>
@@ -655,7 +655,6 @@
   const TWO_PI = Math.PI * 2;
 
   // --- Cookies Management ---
-  // Modification pour rendre le cookie "impérissable" (100 ans par défaut soit 36500 jours)
   function setCookie(name, value, days = 36500) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
     document.cookie = name + '=' + encodeURIComponent(JSON.stringify(value)) + '; expires=' + expires + '; path=/; SameSite=Strict';
@@ -1428,14 +1427,20 @@
       modalTitle.textContent = "🎉 Victoire !";
       winnerResult.innerHTML = `<span style="font-size: 1rem; color: var(--text-muted); font-weight: normal; display: block; margin-bottom: 8px;">Le gagnant est :</span>${winnerText}`;
       modalSubtitle.style.display = 'none';
+      
+      // AJOUT : Remplacement du bouton Information par les boutons "i" (IMDB) et "t" (TMDB)
       modalActions.innerHTML = `
-        <button class="btn-secondary" id="infoVicBtn">Information</button>
-        <button class="btn-secondary" id="closeVictoryBtn">Fermer</button>
+        <button class="btn-secondary" id="imdbVicBtn" style="flex: 0 0 60px; color: #fbbf24; font-weight: 800; font-style: italic; font-size: 1.1rem; padding: 10px 0;" title="Rechercher sur IMDB">i</button>
+        <button class="btn-secondary" id="tmdbVicBtn" style="flex: 0 0 60px; color: #38bdf8; font-weight: 800; font-style: italic; font-size: 1.1rem; padding: 10px 0;" title="Rechercher sur TMDB">t</button>
+        <button class="btn-secondary" id="closeVictoryBtn" style="flex: 1;">Fermer</button>
       `;
       
-      const infoVicBtn = document.getElementById('infoVicBtn');
-      infoVicBtn.addEventListener('click', () => {
+      document.getElementById('imdbVicBtn').addEventListener('click', () => {
         window.open('https://www.imdb.com/fr/find/?q=' + encodeURIComponent(winnerText), '_blank', 'noopener,noreferrer');
+      });
+
+      document.getElementById('tmdbVicBtn').addEventListener('click', () => {
+        window.open('https://www.themoviedb.org/search?language=fr&query=' + encodeURIComponent(winnerText), '_blank', 'noopener,noreferrer');
       });
 
       const closeVicBtn = document.getElementById('closeVictoryBtn');
