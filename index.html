@@ -86,13 +86,6 @@
     canvas#wheel:active {
       cursor: grabbing;
     }
-    .wheel-hint {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 20px;
-      text-align: center;
-    }
 
     /* Overlay "Le Prochain Gagne" */
     .next-win-overlay {
@@ -211,16 +204,25 @@
     }
     .action-buttons-group {
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
+      align-items: center;
       gap: 10px;
       width: 100%;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
+      padding: 0 5px;
+    }
+    .stat-badge {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
     }
     #spinBtn {
       width: auto;
-      min-width: 260px;
+      flex: 1;
+      max-width: 280px;
       height: 44px;
-      padding: 0 28px;
+      padding: 0 20px;
     }
     button {
       background: var(--primary);
@@ -546,7 +548,9 @@
   <!-- Section Roue -->
   <div class="wheel-section">
     <div class="action-buttons-group">
+      <span id="spinCounterDisplay" class="stat-badge" title="nombre de lancer">0</span>
       <button id="spinBtn">Mélanger et lancer la roue</button>
+      <span id="turnsCounterDisplay" class="stat-badge" title="nombre de tour">0,00</span>
     </div>
 
     <div class="wheel-content-area">
@@ -558,8 +562,6 @@
         <div class="arrow"></div>
         <canvas id="wheel" width="660" height="660"></canvas>
       </div>
-      <!-- Compteur de lancers à la place du texte indicatif -->
-      <div class="wheel-hint" id="spinCounterDisplay">Compteur : 0</div>
     </div>
     
     <div class="controls-row">
@@ -594,7 +596,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.4.1 · kick.com/redkhey
+      Rouedah · version 0.5.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -853,13 +855,19 @@
   let savedDuration = getCookie('wheel_duration') || 9;
   let isNextWinActive = getCookie('wheel_next_win') === true;
 
-  // Initialisation du compteur
+  // Compteurs & Statistiques
   let totalSpins = getCookie('wheel_total_spins') || 0;
+  let totalDeltaDegrees = getCookie('wheel_total_degrees') || 0;
+
   const spinCounterDisplay = document.getElementById('spinCounterDisplay');
-  function updateSpinCounter() {
-    spinCounterDisplay.textContent = `Compteur : ${totalSpins.toLocaleString('fr-FR')}`;
+  const turnsCounterDisplay = document.getElementById('turnsCounterDisplay');
+
+  function updateStatsUI() {
+    spinCounterDisplay.textContent = totalSpins.toLocaleString('fr-FR');
+    const totalTurns = totalDeltaDegrees / 360;
+    turnsCounterDisplay.textContent = totalTurns.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  updateSpinCounter();
+  updateStatsUI();
   
   let currentRotation = 0;
   let isSpinning = false;
@@ -873,6 +881,7 @@
   let isDraggingWheel = false;
   let startMouseAngle = 0;
   let startRotation = 0;
+  let lastDragAngle = 0;
 
   const canvas = document.getElementById('wheel');
   const ctx = canvas.getContext('2d');
@@ -985,8 +994,6 @@
     return false;
   }
 
-  // Calcule l'index de la case pointée par un angle donné (mutualisé entre
-  // le clic-droit de sélection et l'animation de la roue).
   function getSliceIndexAtAngle(pointerAngle, rotation, numItems) {
     const sliceAngle = TWO_PI / numItems;
     const normalizedRotation = ((rotation % TWO_PI) + TWO_PI) % TWO_PI;
@@ -995,12 +1002,10 @@
     return Math.floor(relativeAngle / sliceAngle) % numItems;
   }
 
-  // Rayon utilisé pour détecter si un point (souris) est bien sur la roue.
   function getWheelHitRadius() {
     return (canvas.width / 2) - 8;
   }
 
-  // Dessine le contour d'une seule case, par-dessus toutes les cases déjà tracées.
   function drawSliceOutline(index, sliceAngle, center, radius, color, lineWidth) {
     const angle = currentRotation + index * sliceAngle;
     ctx.beginPath();
@@ -1012,8 +1017,6 @@
     ctx.stroke();
   }
 
-  // Raccourcit le texte (avec le contexte de police déjà appliqué sur ctx) pour
-  // qu'il tienne dans maxWidth, en ajoutant "..." si besoin.
   function truncateTextToWidth(text, maxWidth) {
     if (ctx.measureText(text).width <= maxWidth) return text;
     let truncated = text;
@@ -1043,7 +1046,6 @@
     }
     
     const sliceAngle = TWO_PI / numItems;
-    
     const maxTextWidth = radius - 18 - 5;
 
     items.forEach((item, i) => {
@@ -1051,7 +1053,6 @@
       const isNextWinSlice = item.text.trim().toLowerCase() === "le prochain gagne";
 
       ctx.beginPath();
-      
       if (isNextWinSlice) {
         ctx.fillStyle = '#d4af37';
       } else {
@@ -1063,11 +1064,9 @@
       ctx.closePath();
       ctx.fill();
 
-      // Texture de paillettes argentées scintillantes fixes pour la case dorée
       if (isNextWinSlice) {
         ctx.save();
         ctx.clip(); 
-        
         let seed = i * 997;
         const now = Date.now();
         for (let p = 0; p < 45; p++) {
@@ -1100,14 +1099,11 @@
       if (isNextWinSlice) {
         const fontSize = Math.max(12, Math.min(20, 330 / numItems));
         ctx.font = `900 ${fontSize}px system-ui`;
-        
         const now = Date.now();
         const textAlpha = 0.425 + 0.325 * Math.sin(now / 300);
         ctx.fillStyle = `rgba(0, 0, 0, ${textAlpha})`;
         ctx.shadowColor = 'transparent';
-        
         const text = truncateTextToWidth(item.text, maxTextWidth);
-        
         ctx.fillText(text, radius - 18, 6);
       } else {
         ctx.fillStyle = '#000000';
@@ -1121,12 +1117,10 @@
       ctx.restore();
     });
 
-    // Contour de sélection (clic droit), dessiné par-dessus toutes les cases.
     if (selectedSliceIndex !== null && items[selectedSliceIndex]) {
       drawSliceOutline(selectedSliceIndex, sliceAngle, center, radius, '#38bdf8', 5);
     }
 
-    // Contour de la case gagnante en fin de rotation, dessiné par-dessus toutes les cases.
     if (isSuspense && winningIndex !== null && items[winningIndex]) {
       drawSliceOutline(winningIndex, sliceAngle, center, radius, '#ef4444', 5);
     }
@@ -1151,6 +1145,7 @@
     if (distanceFromCenter <= radius) {
       isDraggingWheel = true;
       startMouseAngle = Math.atan2(y, x);
+      lastDragAngle = startMouseAngle;
       startRotation = currentRotation;
       closeContextMenu();
     }
@@ -1163,6 +1158,17 @@
     const y = e.clientY - rect.top - (canvas.height / 2);
     const currentMouseAngle = Math.atan2(y, x);
     
+    let deltaAngle = currentMouseAngle - lastDragAngle;
+    if (deltaAngle > Math.PI) deltaAngle -= TWO_PI;
+    else if (deltaAngle < -Math.PI) deltaAngle += TWO_PI;
+
+    const deltaDeg = (deltaAngle * 180) / Math.PI;
+    totalDeltaDegrees += deltaDeg;
+    setCookie('wheel_total_degrees', totalDeltaDegrees);
+    updateStatsUI();
+
+    lastDragAngle = currentMouseAngle;
+
     let angleDiff = currentMouseAngle - startMouseAngle;
     currentRotation = startRotation + angleDiff;
     drawWheel();
@@ -1229,13 +1235,11 @@
     const newText = prompt('Modifier le nom de la case :', currentText);
     if (newText !== null && newText.trim() !== '') {
       const trimmed = newText.trim();
-      // Renomme toutes les cases identiques (les doublons) présentes sur la roue.
       items.forEach(item => {
         if (item.text.trim().toLowerCase() === currentKey) {
           item.text = trimmed;
         }
       });
-      // Met à jour la ligne correspondante dans l'historique, en gardant sa date.
       const histItem = historyItems.find(h => h.text.trim().toLowerCase() === currentKey);
       if (histItem) histItem.text = trimmed;
       historyItems = filterUniqueHistory(historyItems);
@@ -1303,18 +1307,15 @@
 
     isTwoItemsDuel = (items.length === 2);
 
-    // Incrémentation et sauvegarde du compteur
     totalSpins++;
     setCookie('wheel_total_spins', totalSpins);
-    updateSpinCounter();
+    updateStatsUI();
 
-    // Désactive les boutons dès le clic, pendant toute la phase de mélange.
     spinBtn.disabled = true;
     shuffleBtn.disabled = true;
     doubleBtn.disabled = true;
     removeDuplicatesBtn.disabled = true;
 
-    // Trois mélanges successifs de la roue, avec de courtes pauses, avant le lancement.
     shuffleArray(items);
     saveState();
     renderActiveList();
@@ -1339,8 +1340,6 @@
       baseDuration = Math.max(3, baseDuration + variation);
     }
 
-    // Petite variation secrète de ±0.1 à 0.9s à chaque lancement, toujours
-    // recalculée par rapport au réglage de la jauge (pas cumulative).
     const jitterAmount = (Math.floor(Math.random() * 9) + 1) / 10;
     const jitterSign = Math.random() < 0.5 ? -1 : 1;
     baseDuration = Math.max(1, baseDuration + (jitterSign * jitterAmount));
@@ -1358,6 +1357,8 @@
     const randomTargetAngle = Math.random() * TWO_PI;
     const startAngle = currentRotation;
     const totalRotationAngle = (baseRounds * TWO_PI) + randomTargetAngle;
+    
+    let lastAnimRotation = startAngle;
     lastSliceIndex = -1;
 
     function animate(currentTime) {
@@ -1365,7 +1366,16 @@
       const progress = Math.min(elapsed / durationMs, 1);
       const easeProgress = fastStartEaseOut(progress);
       
-      currentRotation = startAngle + (totalRotationAngle * easeProgress);
+      const targetRotationNow = startAngle + (totalRotationAngle * easeProgress);
+      const frameDeltaDeg = ((targetRotationNow - lastAnimRotation) * 180) / Math.PI;
+      
+      totalDeltaDegrees += frameDeltaDeg;
+      setCookie('wheel_total_degrees', totalDeltaDegrees);
+      updateStatsUI();
+
+      currentRotation = targetRotationNow;
+      lastAnimRotation = currentRotation;
+
       const currentSlice = getSliceIndexAtAngle(0, currentRotation, items.length);
       
       if (currentSlice !== lastSliceIndex) {
@@ -1428,7 +1438,6 @@
       winnerResult.innerHTML = `<span style="font-size: 1rem; color: var(--text-muted); font-weight: normal; display: block; margin-bottom: 8px;">Le gagnant est :</span>${winnerText}`;
       modalSubtitle.style.display = 'none';
       
-      // AJOUT : Remplacement du bouton Information par les boutons "i" (IMDB) et "t" (TMDB)
       modalActions.innerHTML = `
         <button class="btn-secondary" id="imdbVicBtn" style="flex: 0 0 60px; color: #fbbf24; font-weight: 800; font-style: italic; font-size: 1.1rem; padding: 10px 0;" title="Rechercher sur IMDB">i</button>
         <button class="btn-secondary" id="tmdbVicBtn" style="flex: 0 0 60px; color: #38bdf8; font-weight: 800; font-style: italic; font-size: 1.1rem; padding: 10px 0;" title="Rechercher sur TMDB">t</button>
@@ -1489,7 +1498,6 @@
       return;
     }
 
-    // Regroupe les cases identiques (insensible à la casse) en une seule ligne.
     const groups = new Map();
     items.forEach(item => {
       const key = item.text.trim().toLowerCase();
@@ -1549,7 +1557,6 @@
           <div class="action-group">
             <button class="action-btn add-back-btn" title="Ajouter à la roue" onclick="readdFromHistory(${realIndex})">＋</button>
             <a class="action-btn imdb-btn" href="https://www.imdb.com/fr/find/?q=${encodeURIComponent(item.text)}" target="_blank" rel="noopener noreferrer" title="Rechercher sur IMDB">i</a>
-            <!-- Ajout du bouton TMDB -->
             <a class="action-btn tmdb-btn" href="https://www.themoviedb.org/search?language=fr&query=${encodeURIComponent(item.text)}" target="_blank" rel="noopener noreferrer" title="Rechercher sur TMDB">t</a>
             <button class="action-btn delete-btn" title="Supprimer de l'historique" onclick="deleteHistoryItem(${realIndex})">✕</button>
           </div>
