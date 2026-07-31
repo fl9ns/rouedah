@@ -596,7 +596,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.5.0 · kick.com/redkhey
+      Rouedah · version 0.6.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -656,22 +656,52 @@
   // --- Constantes ---
   const TWO_PI = Math.PI * 2;
 
-  // --- Cookies Management ---
-  function setCookie(name, value, days = 36500) {
-    const expires = new Date(Date.now() + days * 864e5).toUTCString();
-    document.cookie = name + '=' + encodeURIComponent(JSON.stringify(value)) + '; expires=' + expires + '; path=/; SameSite=Strict';
+  // --- LocalStorage & Cookie Migration Management ---
+  function deleteCookie(name) {
+    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
   }
-  function getCookie(name) {
+
+  function getOldCookie(name) {
     return document.cookie.split('; ').reduce((r, v) => {
       const parts = v.split('=');
       return parts[0] === name ? JSON.parse(decodeURIComponent(parts[1])) : r;
     }, null);
   }
 
+  function saveData(name, value) {
+    try {
+      localStorage.setItem(name, JSON.stringify(value));
+      return value;
+    } catch (e) {
+      console.warn("Erreur de sauvegarde LocalStorage", e);
+      return value;
+    }
+  }
+
+  function loadData(name) {
+    // 1. Chercher d'abord dans le LocalStorage
+    const localItem = localStorage.getItem(name);
+    if (localItem !== null) {
+      return JSON.parse(localItem);
+    }
+    
+    // 2. Si non trouvé dans LocalStorage, chercher dans les anciens cookies
+    const cookieItem = getOldCookie(name);
+    if (cookieItem !== null) {
+      // Migration : on sauvegarde dans le LocalStorage et on supprime l'ancien cookie
+      saveData(name, cookieItem);
+      deleteCookie(name);
+      return cookieItem;
+    }
+    
+    // 3. Si introuvable partout
+    return null;
+  }
+
   // --- Audio & Volumes ---
-  let isMuted = getCookie('wheel_muted') || false;
-  let tickVolume = parseFloat(getCookie('wheel_tick_vol') ?? 1); 
-  let victoryVolume = parseFloat(getCookie('wheel_victory_vol') ?? 0.2);
+  let isMuted = loadData('wheel_muted') || false;
+  let tickVolume = parseFloat(loadData('wheel_tick_vol') ?? 1); 
+  let victoryVolume = parseFloat(loadData('wheel_victory_vol') ?? 0.2);
 
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const victorySound = new Audio('victory-zelda-fix.mp3'); 
@@ -686,13 +716,13 @@
 
   tickVolInput.addEventListener('input', (e) => {
     tickVolume = e.target.value / 100;
-    setCookie('wheel_tick_vol', tickVolume);
+    saveData('wheel_tick_vol', tickVolume);
   });
 
   vicVolInput.addEventListener('input', (e) => {
     victoryVolume = e.target.value / 100;
     victorySound.volume = victoryVolume;
-    setCookie('wheel_victory_vol', victoryVolume);
+    saveData('wheel_victory_vol', victoryVolume);
   });
 
   testVicBtn.addEventListener('click', () => {
@@ -843,21 +873,21 @@
   }
 
   // --- State Initialization ---
-  let items = getCookie('wheel_items') || [
+  let items = loadData('wheel_items') || [
     { id: 1, text: 'Dune : Deuxième Partie', date: '24/07/2026 00:00' },
     { id: 2, text: 'Le Comte de Monte-Cristo', date: '24/07/2026 00:05' }
   ];
   assignHarmoniousColors(items);
   
-  let rawHistory = getCookie('wheel_history') || [...items];
+  let rawHistory = loadData('wheel_history') || [...items];
   let historyItems = filterUniqueHistory(rawHistory);
   
-  let savedDuration = getCookie('wheel_duration') || 9;
-  let isNextWinActive = getCookie('wheel_next_win') === true;
+  let savedDuration = loadData('wheel_duration') || 9;
+  let isNextWinActive = loadData('wheel_next_win') === true;
 
   // Compteurs & Statistiques
-  let totalSpins = getCookie('wheel_total_spins') || 0;
-  let totalDeltaDegrees = getCookie('wheel_total_degrees') || 0;
+  let totalSpins = loadData('wheel_total_spins') || 0;
+  let totalDeltaDegrees = loadData('wheel_total_degrees') || 0;
 
   const spinCounterDisplay = document.getElementById('spinCounterDisplay');
   const turnsCounterDisplay = document.getElementById('turnsCounterDisplay');
@@ -931,7 +961,7 @@
   cancelNextWinBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     isNextWinActive = false;
-    setCookie('wheel_next_win', false);
+    saveData('wheel_next_win', false);
     nextWinOverlay.classList.remove('active');
     showToast("Mode 'Le prochain gagne' annulé.");
   });
@@ -939,7 +969,7 @@
   durationInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value, 10);
     durationVal.textContent = `${val}s`;
-    setCookie('wheel_duration', val);
+    saveData('wheel_duration', val);
   });
 
   function updateMuteUI() {
@@ -960,7 +990,7 @@
 
   muteBtn.addEventListener('click', () => {
     isMuted = !isMuted;
-    setCookie('wheel_muted', isMuted);
+    saveData('wheel_muted', isMuted);
     updateMuteUI();
   });
 
@@ -1164,7 +1194,7 @@
 
     const deltaDeg = (deltaAngle * 180) / Math.PI;
     totalDeltaDegrees += deltaDeg;
-    setCookie('wheel_total_degrees', totalDeltaDegrees);
+    saveData('wheel_total_degrees', totalDeltaDegrees);
     updateStatsUI();
 
     lastDragAngle = currentMouseAngle;
@@ -1308,7 +1338,7 @@
     isTwoItemsDuel = (items.length === 2);
 
     totalSpins++;
-    setCookie('wheel_total_spins', totalSpins);
+    saveData('wheel_total_spins', totalSpins);
     updateStatsUI();
 
     spinBtn.disabled = true;
@@ -1370,7 +1400,7 @@
       const frameDeltaDeg = ((targetRotationNow - lastAnimRotation) * 180) / Math.PI;
       
       totalDeltaDegrees += frameDeltaDeg;
-      setCookie('wheel_total_degrees', totalDeltaDegrees);
+      saveData('wheel_total_degrees', totalDeltaDegrees);
       updateStatsUI();
 
       currentRotation = targetRotationNow;
@@ -1415,7 +1445,7 @@
 
     if (winnerText.trim().toLowerCase() === "le prochain gagne") {
       isNextWinActive = true;
-      setCookie('wheel_next_win', true);
+      saveData('wheel_next_win', true);
       nextWinOverlay.classList.add('active');
       showToast("Le prochain gagne est activé !");
       
@@ -1430,7 +1460,7 @@
     if (isTwoItemsDuel || isNextWinActive) {
       if (isNextWinActive) {
         isNextWinActive = false;
-        setCookie('wheel_next_win', false);
+        saveData('wheel_next_win', false);
         nextWinOverlay.classList.remove('active');
       }
 
@@ -1484,8 +1514,8 @@
   }
 
   function saveState() {
-    setCookie('wheel_items', items);
-    setCookie('wheel_history', historyItems);
+    saveData('wheel_items', items);
+    saveData('wheel_history', historyItems);
   }
 
   function renderActiveList() {
