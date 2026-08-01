@@ -132,9 +132,12 @@
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
-      pointer-events: auto;
+      pointer-events: none;
       transition: all 0.2s;
       text-transform: none;
+    }
+    .next-win-overlay.active .cancel-next-win {
+      pointer-events: auto;
     }
     .cancel-next-win:hover {
       background: #1e293b;
@@ -345,6 +348,12 @@
       border-color: rgba(212, 175, 55, 0.4);
       background: rgba(212, 175, 55, 0.08);
     }
+    #historyList li, #activeList li {
+      cursor: context-menu;
+    }
+    #historyList li:hover, #activeList li:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
     .empty-msg {
       display: flex;
       align-items: center;
@@ -363,24 +372,6 @@
       color: var(--text-muted);
       font-weight: 700;
     }
-    .action-group {
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-    .action-btn {
-      background: transparent;
-      padding: 2px 6px;
-      font-size: 0.8rem;
-      width: auto;
-      border-radius: 4px;
-    }
-    .delete-btn { color: #f87171; }
-    .delete-btn:hover { background: rgba(239, 68, 68, 0.15); }
-    .add-back-btn { color: #38bdf8; }
-    .add-back-btn:hover { background: rgba(56, 189, 248, 0.15); }
     .meta-date {
       display: block;
       font-size: 0.7rem;
@@ -396,30 +387,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-    .imdb-btn {
-      color: #fbbf24;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-style: italic;
-    }
-    .imdb-btn:hover {
-      background: rgba(251, 191, 36, 0.15);
-    }
-    .tmdb-btn {
-      color: #38bdf8;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-style: italic;
-    }
-    .tmdb-btn:hover {
-      background: rgba(56, 189, 248, 0.15);
     }
     .context-menu {
       position: fixed;
@@ -596,7 +563,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.6.0 · kick.com/redkhey
+      Rouedah · version 0.7.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -617,16 +584,40 @@
   </div>
 </div>
 
-<!-- Menus et Modales -->
+<!-- Menus contextuels -->
+<!-- Menu Roue -->
 <div id="contextMenu" class="context-menu">
-  <div class="context-menu-item" id="ctxEdit">Modifier la case</div>
+  <div class="context-menu-item" id="ctxEdit">Modifier</div>
   <div class="context-menu-item" id="ctxDuplicate">Ajouter un doublon</div>
   <div class="context-menu-separator"></div>
   <div class="context-menu-item" id="ctxImdb">Recherche IMDB</div>
   <div class="context-menu-item" id="ctxTmdb">Recherche TMDB</div>
   <div class="context-menu-separator"></div>
-  <div class="context-menu-item danger" id="ctxDelete">Supprimer la case</div>
+  <div class="context-menu-item danger" id="ctxDelete">Supprimer</div>
 </div>
+
+<!-- Menu Historique -->
+<div id="historyContextMenu" class="context-menu">
+  <div class="context-menu-item" id="hCtxEdit">Modifier</div>
+  <div class="context-menu-item" id="hCtxAdd">Ajouter dans la roue</div>
+  <div class="context-menu-separator"></div>
+  <div class="context-menu-item" id="hCtxImdb">Recherche IMDB</div>
+  <div class="context-menu-item" id="hCtxTmdb">Recherche TMDB</div>
+  <div class="context-menu-separator"></div>
+  <div class="context-menu-item danger" id="hCtxDelete">Supprimer</div>
+</div>
+
+<!-- Menu Cases actives (Droite) -->
+<div id="activeContextMenu" class="context-menu">
+  <div class="context-menu-item" id="aCtxEdit">Modifier</div>
+  <div class="context-menu-item" id="aCtxDuplicate">Ajouter un doublon</div>
+  <div class="context-menu-separator"></div>
+  <div class="context-menu-item" id="aCtxImdb">Recherche IMDB</div>
+  <div class="context-menu-item" id="aCtxTmdb">Recherche TMDB</div>
+  <div class="context-menu-separator"></div>
+  <div class="context-menu-item danger" id="aCtxDelete">Supprimer</div>
+</div>
+
 <div id="toastNotification" class="toast-notification">Notification</div>
 
 <div class="modal" id="resultModal">
@@ -905,7 +896,12 @@
   let winningIndex = null;
   let lastSliceIndex = -1;
   let pendingAction = null;
+  
   let selectedSliceIndex = null;
+  let selectedHistoryIndex = null;
+  let selectedActiveKey = null;
+  let selectedActiveOriginalText = null;
+  
   let isTwoItemsDuel = false;
 
   let isDraggingWheel = false;
@@ -933,12 +929,28 @@
   const clearActiveBtn = document.getElementById('clearActiveBtn');
   const clearHistoryBtn = document.getElementById('clearHistoryBtn');
   const addAllHistoryBtn = document.getElementById('addAllHistoryBtn');
+  
   const contextMenu = document.getElementById('contextMenu');
   const ctxEdit = document.getElementById('ctxEdit');
   const ctxDuplicate = document.getElementById('ctxDuplicate');
   const ctxImdb = document.getElementById('ctxImdb');
   const ctxTmdb = document.getElementById('ctxTmdb');
   const ctxDelete = document.getElementById('ctxDelete');
+  
+  const historyContextMenu = document.getElementById('historyContextMenu');
+  const hCtxAdd = document.getElementById('hCtxAdd');
+  const hCtxEdit = document.getElementById('hCtxEdit');
+  const hCtxImdb = document.getElementById('hCtxImdb');
+  const hCtxTmdb = document.getElementById('hCtxTmdb');
+  const hCtxDelete = document.getElementById('hCtxDelete');
+
+  const activeContextMenu = document.getElementById('activeContextMenu');
+  const aCtxEdit = document.getElementById('aCtxEdit');
+  const aCtxDuplicate = document.getElementById('aCtxDuplicate');
+  const aCtxImdb = document.getElementById('aCtxImdb');
+  const aCtxTmdb = document.getElementById('aCtxTmdb');
+  const aCtxDelete = document.getElementById('aCtxDelete');
+  
   const modal = document.getElementById('resultModal');
   const modalTitle = document.getElementById('modalTitle');
   const winnerResult = document.getElementById('winnerResult');
@@ -1177,7 +1189,7 @@
       startMouseAngle = Math.atan2(y, x);
       lastDragAngle = startMouseAngle;
       startRotation = currentRotation;
-      closeContextMenu();
+      closeAllContextMenus();
     }
   });
 
@@ -1219,9 +1231,12 @@
     const distanceFromCenter = Math.sqrt(x * x + y * y);
     const radius = getWheelHitRadius();
     if (distanceFromCenter > radius) {
-      closeContextMenu();
+      closeAllContextMenus();
       return;
     }
+    
+    closeAllContextMenus(); // Reset everything FIRST
+    
     const angle = Math.atan2(y, x);
     selectedSliceIndex = getSliceIndexAtAngle(angle, currentRotation, items.length);
     
@@ -1242,21 +1257,70 @@
     contextMenu.classList.add('active');
   });
 
-  function closeContextMenu() {
-    contextMenu.classList.remove('active');
-    selectedSliceIndex = null;
-    drawWheel();
-  }
-  document.addEventListener('click', (e) => {
-    if (!contextMenu.contains(e.target)) closeContextMenu();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeContextMenu();
+  historyList.addEventListener('contextmenu', (e) => {
+    const li = e.target.closest('li');
+    if (!li || isSpinning || isSuspense) return;
+    e.preventDefault();
+    
+    closeAllContextMenus(); // Reset everything FIRST
+    
+    selectedHistoryIndex = parseInt(li.dataset.index, 10);
+    
+    historyContextMenu.style.top = `${e.clientY}px`;
+    historyContextMenu.style.left = `${e.clientX}px`;
+    historyContextMenu.classList.add('active');
   });
 
+  activeList.addEventListener('contextmenu', (e) => {
+    const li = e.target.closest('li');
+    if (!li || isSpinning || isSuspense) return;
+    e.preventDefault();
+    
+    closeAllContextMenus(); // Reset everything FIRST
+    
+    selectedActiveKey = li.dataset.key;
+    selectedActiveOriginalText = li.dataset.text;
+    
+    if (selectedActiveKey === "le prochain gagne") {
+      aCtxEdit.classList.add('disabled');
+      aCtxImdb.classList.add('disabled');
+      aCtxTmdb.classList.add('disabled');
+    } else {
+      aCtxEdit.classList.remove('disabled');
+      aCtxImdb.classList.remove('disabled');
+      aCtxTmdb.classList.remove('disabled');
+    }
+
+    activeContextMenu.style.top = `${e.clientY}px`;
+    activeContextMenu.style.left = `${e.clientX}px`;
+    activeContextMenu.classList.add('active');
+  });
+
+  function closeAllContextMenus() {
+    contextMenu.classList.remove('active');
+    historyContextMenu.classList.remove('active');
+    activeContextMenu.classList.remove('active');
+    selectedSliceIndex = null;
+    selectedHistoryIndex = null;
+    selectedActiveKey = null;
+    selectedActiveOriginalText = null;
+    drawWheel();
+  }
+  
+  document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target) && !historyContextMenu.contains(e.target) && !activeContextMenu.contains(e.target)) {
+      closeAllContextMenus();
+    }
+  });
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAllContextMenus();
+  });
+
+  // Actions Menu Roue
   ctxEdit.addEventListener('click', () => {
     const index = selectedSliceIndex;
-    closeContextMenu();
+    closeAllContextMenus();
     if (index === null || !items[index]) return;
     if (items[index].text.trim().toLowerCase() === "le prochain gagne") return;
     
@@ -1281,7 +1345,7 @@
 
   ctxDuplicate.addEventListener('click', () => {
     const index = selectedSliceIndex;
-    closeContextMenu();
+    closeAllContextMenus();
     if (index === null || !items[index]) return;
     if (items.length >= 100) {
       showToast("Faut pas abuser des bonnes choses");
@@ -1301,7 +1365,7 @@
 
   ctxImdb.addEventListener('click', () => {
     const index = selectedSliceIndex;
-    closeContextMenu();
+    closeAllContextMenus();
     if (index === null || !items[index]) return;
     if (items[index].text.trim().toLowerCase() === "le prochain gagne") return;
     window.open('https://www.imdb.com/fr/find/?q=' + encodeURIComponent(items[index].text), '_blank', 'noopener,noreferrer');
@@ -1309,7 +1373,7 @@
 
   ctxTmdb.addEventListener('click', () => {
     const index = selectedSliceIndex;
-    closeContextMenu();
+    closeAllContextMenus();
     if (index === null || !items[index]) return;
     if (items[index].text.trim().toLowerCase() === "le prochain gagne") return;
     window.open('https://www.themoviedb.org/search?language=fr&query=' + encodeURIComponent(items[index].text), '_blank', 'noopener,noreferrer');
@@ -1317,13 +1381,150 @@
 
   ctxDelete.addEventListener('click', () => {
     const index = selectedSliceIndex;
-    closeContextMenu();
+    closeAllContextMenus();
     if (index === null || !items[index]) return;
     items.splice(index, 1);
     assignHarmoniousColors(items);
     saveState();
     renderActiveList();
     renderHistoryList();
+  });
+
+  // Actions Menu Historique
+  hCtxAdd.addEventListener('click', () => {
+    const index = selectedHistoryIndex;
+    closeAllContextMenus();
+    if (index === null || !historyItems[index]) return;
+    addItem(historyItems[index].text);
+  });
+
+  hCtxEdit.addEventListener('click', () => {
+    const index = selectedHistoryIndex;
+    closeAllContextMenus();
+    if (index === null || !historyItems[index]) return;
+    
+    const currentText = historyItems[index].text;
+    const currentKey = currentText.trim().toLowerCase();
+    const newText = prompt('Modifier le nom de la case (s\'appliquera aussi à la roue) :', currentText);
+    
+    if (newText !== null && newText.trim() !== '') {
+      const trimmed = newText.trim();
+      
+      // Update in history
+      historyItems[index].text = trimmed;
+      
+      // Update in wheel
+      items.forEach(item => {
+        if (item.text.trim().toLowerCase() === currentKey) {
+          item.text = trimmed;
+        }
+      });
+      
+      historyItems = filterUniqueHistory(historyItems);
+      saveState();
+      renderActiveList();
+      renderHistoryList();
+    }
+  });
+
+  hCtxImdb.addEventListener('click', () => {
+    const index = selectedHistoryIndex;
+    closeAllContextMenus();
+    if (index === null || !historyItems[index]) return;
+    window.open('https://www.imdb.com/fr/find/?q=' + encodeURIComponent(historyItems[index].text), '_blank', 'noopener,noreferrer');
+  });
+
+  hCtxTmdb.addEventListener('click', () => {
+    const index = selectedHistoryIndex;
+    closeAllContextMenus();
+    if (index === null || !historyItems[index]) return;
+    window.open('https://www.themoviedb.org/search?language=fr&query=' + encodeURIComponent(historyItems[index].text), '_blank', 'noopener,noreferrer');
+  });
+
+  hCtxDelete.addEventListener('click', () => {
+    const index = selectedHistoryIndex;
+    closeAllContextMenus();
+    if (index === null || !historyItems[index]) return;
+    
+    const textToRemove = historyItems[index].text.trim().toLowerCase();
+    
+    // Remove from history
+    historyItems.splice(index, 1);
+    
+    // Remove from wheel
+    items = items.filter(it => it.text.trim().toLowerCase() !== textToRemove);
+    assignHarmoniousColors(items);
+    
+    saveState();
+    renderActiveList();
+    renderHistoryList();
+  });
+
+  // Actions Menu Cases actives (Droite)
+  aCtxEdit.addEventListener('click', () => {
+    const key = selectedActiveKey;
+    const currentText = selectedActiveOriginalText;
+    closeAllContextMenus();
+    if (!key || key === "le prochain gagne") return;
+    
+    const newText = prompt('Modifier le nom de la case :', currentText);
+    if (newText !== null && newText.trim() !== '') {
+      const trimmed = newText.trim();
+      items.forEach(item => {
+        if (item.text.trim().toLowerCase() === key) {
+          item.text = trimmed;
+        }
+      });
+      const histItem = historyItems.find(h => h.text.trim().toLowerCase() === key);
+      if (histItem) histItem.text = trimmed;
+      historyItems = filterUniqueHistory(historyItems);
+      saveState();
+      renderActiveList();
+      renderHistoryList();
+    }
+  });
+
+  aCtxDuplicate.addEventListener('click', () => {
+    const key = selectedActiveKey;
+    closeAllContextMenus();
+    if (!key) return;
+    if (items.length >= 100) {
+      showToast("Faut pas abuser des bonnes choses");
+      return;
+    }
+    const originalItem = items.find(it => it.text.trim().toLowerCase() === key);
+    if (originalItem) {
+      items.push({
+        id: Date.now() + Math.random(),
+        text: originalItem.text,
+        date: new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+      });
+      assignHarmoniousColors(items);
+      saveState();
+      renderActiveList();
+      renderHistoryList();
+    }
+  });
+
+  aCtxImdb.addEventListener('click', () => {
+    const text = selectedActiveOriginalText;
+    closeAllContextMenus();
+    if (!text || text.trim().toLowerCase() === "le prochain gagne") return;
+    window.open('https://www.imdb.com/fr/find/?q=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer');
+  });
+
+  aCtxTmdb.addEventListener('click', () => {
+    const text = selectedActiveOriginalText;
+    closeAllContextMenus();
+    if (!text || text.trim().toLowerCase() === "le prochain gagne") return;
+    window.open('https://www.themoviedb.org/search?language=fr&query=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer');
+  });
+
+  aCtxDelete.addEventListener('click', () => {
+    const key = selectedActiveKey;
+    closeAllContextMenus();
+    if (!key) return;
+    removeOneActiveItem(key);
   });
 
   function wait(ms) {
@@ -1545,6 +1746,10 @@
     sortedGroups.forEach(([key, group]) => {
       const isNextWin = key === "le prochain gagne";
       const li = document.createElement('li');
+      // Ajouts pour le menu contextuel
+      li.dataset.key = key;
+      li.dataset.text = group.text;
+      
       if (isNextWin) {
         li.classList.add('next-win-item');
       }
@@ -1553,16 +1758,7 @@
       info.className = 'item-info';
       info.innerHTML = `<span class="count-badge">(x${group.count})</span> ${group.text}`;
 
-      const actionGroup = document.createElement('div');
-      actionGroup.className = 'action-group';
-      const delBtn = document.createElement('button');
-      delBtn.className = 'action-btn delete-btn';
-      delBtn.textContent = '✕';
-      delBtn.addEventListener('click', () => removeOneActiveItem(key));
-      actionGroup.appendChild(delBtn);
-
       li.appendChild(info);
-      li.appendChild(actionGroup);
       activeList.appendChild(li);
     });
 
@@ -1579,16 +1775,12 @@
         const key = item.text.trim().toLowerCase();
         const wheelCount = items.filter(it => it.text.trim().toLowerCase() === key).length;
         const li = document.createElement('li');
+        // Ajout du dataset index pour pouvoir le cibler avec le menu contextuel
+        li.dataset.index = realIndex;
         li.innerHTML = `
           <div class="item-info">
             <strong><span class="count-badge">(x${wheelCount})</span> ${item.text}</strong>
             <span class="meta-date">${item.date}</span>
-          </div>
-          <div class="action-group">
-            <button class="action-btn add-back-btn" title="Ajouter à la roue" onclick="readdFromHistory(${realIndex})">＋</button>
-            <a class="action-btn imdb-btn" href="https://www.imdb.com/fr/find/?q=${encodeURIComponent(item.text)}" target="_blank" rel="noopener noreferrer" title="Rechercher sur IMDB">i</a>
-            <a class="action-btn tmdb-btn" href="https://www.themoviedb.org/search?language=fr&query=${encodeURIComponent(item.text)}" target="_blank" rel="noopener noreferrer" title="Rechercher sur TMDB">t</a>
-            <button class="action-btn delete-btn" title="Supprimer de l'historique" onclick="deleteHistoryItem(${realIndex})">✕</button>
           </div>
         `;
         historyList.appendChild(li);
@@ -1656,17 +1848,6 @@
     renderActiveList();
     renderHistoryList();
   }
-
-  window.readdFromHistory = function(index) {
-    if (isSpinning || isSuspense) return;
-    addItem(historyItems[index].text);
-  };
-
-  window.deleteHistoryItem = function(index) {
-    historyItems.splice(index, 1);
-    saveState();
-    renderHistoryList();
-  };
 
   function openConfirmModal(title, message, callback) {
     confirmTitle.textContent = title;
