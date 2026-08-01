@@ -368,21 +368,29 @@
       min-width: 0;
       word-break: break-word;
     }
-    .count-badge {
-      color: var(--text-muted);
-      font-weight: 700;
-    }
+
+    /* Couleurs des badges multiplicateurs */
+    .count-badge { font-weight: 700; }
+    .badge-0 { color: var(--text-muted); }
+    .badge-1 { color: #16a34a; } /* Vert foncé */
+    .badge-2 { color: #ea580c; } /* Orange foncé */
+    .badge-3 { color: #dc2626; } /* Rouge foncé */
+
     .meta-date {
       display: block;
       font-size: 0.7rem;
       color: var(--text-muted);
     }
+    
+    /* Positionnement de la version tout en bas */
     .app-version {
       text-align: center;
       font-size: 0.78rem;
       color: var(--text-muted);
-      margin-top: 25px;
+      margin-top: auto;
+      padding-bottom: 10px;
     }
+
     .panel-header-actions {
       display: flex;
       align-items: center;
@@ -412,8 +420,16 @@
     .context-menu-item:hover {
       background: #334155;
     }
+    .imdb-item {
+      color: #f5c518;
+      font-weight: 500;
+    }
+    .tmdb-item {
+      color: #01b4e4;
+      font-weight: 500;
+    }
     .context-menu-item.disabled {
-      color: #64748b;
+      color: #64748b !important;
       cursor: not-allowed;
       pointer-events: none;
     }
@@ -506,7 +522,6 @@
       <h3>Historique des cases</h3>
       <div class="panel-header-actions">
         <button id="addAllHistoryBtn" class="clear-all-btn" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">Tout ajouter</button>
-        <button id="clearHistoryBtn" class="clear-all-btn">Effacer</button>
       </div>
     </div>
     <ul id="historyList"></ul>
@@ -563,7 +578,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.7.0 · kick.com/redkhey
+      Rouedah · version 0.8.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -587,35 +602,38 @@
 <!-- Menus contextuels -->
 <!-- Menu Roue -->
 <div id="contextMenu" class="context-menu">
+  <div class="context-menu-item" id="ctxDuplicate">Ajouter à la roue</div>
+  <div class="context-menu-separator"></div>
+  <div class="context-menu-item imdb-item" id="ctxImdb">Recherche IMDB</div>
+  <div class="context-menu-item tmdb-item" id="ctxTmdb">Recherche TMDB</div>
+  <div class="context-menu-separator"></div>
   <div class="context-menu-item" id="ctxEdit">Modifier</div>
-  <div class="context-menu-item" id="ctxDuplicate">Ajouter un doublon</div>
   <div class="context-menu-separator"></div>
-  <div class="context-menu-item" id="ctxImdb">Recherche IMDB</div>
-  <div class="context-menu-item" id="ctxTmdb">Recherche TMDB</div>
-  <div class="context-menu-separator"></div>
-  <div class="context-menu-item danger" id="ctxDelete">Supprimer</div>
+  <div class="context-menu-item danger" id="ctxDelete">Enlever de la roue</div>
 </div>
 
 <!-- Menu Historique -->
 <div id="historyContextMenu" class="context-menu">
-  <div class="context-menu-item" id="hCtxEdit">Modifier</div>
   <div class="context-menu-item" id="hCtxAdd">Ajouter dans la roue</div>
   <div class="context-menu-separator"></div>
-  <div class="context-menu-item" id="hCtxImdb">Recherche IMDB</div>
-  <div class="context-menu-item" id="hCtxTmdb">Recherche TMDB</div>
+  <div class="context-menu-item imdb-item" id="hCtxImdb">Recherche IMDB</div>
+  <div class="context-menu-item tmdb-item" id="hCtxTmdb">Recherche TMDB</div>
+  <div class="context-menu-separator"></div>
+  <div class="context-menu-item" id="hCtxEdit">Modifier</div>
   <div class="context-menu-separator"></div>
   <div class="context-menu-item danger" id="hCtxDelete">Supprimer</div>
 </div>
 
 <!-- Menu Cases actives (Droite) -->
 <div id="activeContextMenu" class="context-menu">
+  <div class="context-menu-item" id="aCtxDuplicate">Ajouter à la roue</div>
+  <div class="context-menu-separator"></div>
+  <div class="context-menu-item imdb-item" id="aCtxImdb">Recherche IMDB</div>
+  <div class="context-menu-item tmdb-item" id="aCtxTmdb">Recherche TMDB</div>
+  <div class="context-menu-separator"></div>
   <div class="context-menu-item" id="aCtxEdit">Modifier</div>
-  <div class="context-menu-item" id="aCtxDuplicate">Ajouter un doublon</div>
   <div class="context-menu-separator"></div>
-  <div class="context-menu-item" id="aCtxImdb">Recherche IMDB</div>
-  <div class="context-menu-item" id="aCtxTmdb">Recherche TMDB</div>
-  <div class="context-menu-separator"></div>
-  <div class="context-menu-item danger" id="aCtxDelete">Supprimer</div>
+  <div class="context-menu-item danger" id="aCtxDelete">Enlever de la roue</div>
 </div>
 
 <div id="toastNotification" class="toast-notification">Notification</div>
@@ -627,7 +645,7 @@
     <p id="modalSubtitle" style="color: var(--text-muted); font-size: 0.9rem;">Que souhaitez-vous faire ?</p>
     <div class="modal-actions" id="modalActions">
       <button class="btn-secondary" id="keepBtn">Ne rien faire</button>
-      <button class="btn-danger" id="removeBtn">Supprimer la case</button>
+      <button class="btn-danger" id="removeBtn">Enlever la case</button>
     </div>
   </div>
 </div>
@@ -644,6 +662,11 @@
 </div>
 
 <script>
+  // --- Blocage global du clic droit du navigateur ---
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+  });
+
   // --- Constantes ---
   const TWO_PI = Math.PI * 2;
 
@@ -927,7 +950,6 @@
   const durationVal = document.getElementById('durationVal');
   const nextWinOverlay = document.getElementById('nextWinOverlay');
   const clearActiveBtn = document.getElementById('clearActiveBtn');
-  const clearHistoryBtn = document.getElementById('clearHistoryBtn');
   const addAllHistoryBtn = document.getElementById('addAllHistoryBtn');
   
   const contextMenu = document.getElementById('contextMenu');
@@ -1049,10 +1071,11 @@
   }
 
   function drawSliceOutline(index, sliceAngle, center, radius, color, lineWidth) {
+    const innerRadius = 20;
     const angle = currentRotation + index * sliceAngle;
     ctx.beginPath();
-    ctx.moveTo(center, center);
-    ctx.arc(center, center, radius, angle, angle + sliceAngle);
+    ctx.arc(center, center, radius, angle, angle + sliceAngle, false);
+    ctx.arc(center, center, innerRadius, angle + sliceAngle, angle, true);
     ctx.closePath();
     ctx.strokeStyle = color;
     ctx.lineWidth = lineWidth;
@@ -1074,21 +1097,25 @@
     const height = canvas.height;
     const center = width / 2;
     const radius = center - 8;
+    const innerRadius = 20;
+    
     ctx.clearRect(0, 0, width, height);
+    
     if (numItems === 0) {
       ctx.fillStyle = '#334155';
       ctx.beginPath();
-      ctx.arc(center, center, radius, 0, TWO_PI);
+      ctx.arc(center, center, radius, 0, TWO_PI, false);
+      ctx.arc(center, center, innerRadius, TWO_PI, 0, true);
       ctx.fill();
       ctx.fillStyle = '#94a3b8';
       ctx.font = '18px system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('Aucune case sur la roue', center, center);
+      ctx.fillText('Aucune case sur la roue', center, center - innerRadius - 20);
       return;
     }
     
     const sliceAngle = TWO_PI / numItems;
-    const maxTextWidth = radius - 18 - 5;
+    const maxTextWidth = radius - innerRadius - 24;
 
     items.forEach((item, i) => {
       const angle = currentRotation + i * sliceAngle;
@@ -1101,8 +1128,8 @@
         ctx.fillStyle = getPastelColor(item.hue);
       }
       
-      ctx.moveTo(center, center);
-      ctx.arc(center, center, radius, angle, angle + sliceAngle);
+      ctx.arc(center, center, radius, angle, angle + sliceAngle, false);
+      ctx.arc(center, center, innerRadius, angle + sliceAngle, angle, true);
       ctx.closePath();
       ctx.fill();
 
@@ -1117,7 +1144,7 @@
           seed = (seed * 9301 + 49297) % 233280;
           const rnd2 = seed / 233280;
           
-          const dist = rnd1 * radius;
+          const dist = innerRadius + rnd1 * (radius - innerRadius);
           const subAngle = angle + rnd2 * sliceAngle;
           const px = center + Math.cos(subAngle) * dist;
           const py = center + Math.sin(subAngle) * dist;
@@ -1183,8 +1210,10 @@
     const y = e.clientY - rect.top - (canvas.height / 2);
     const distanceFromCenter = Math.sqrt(x * x + y * y);
     const radius = getWheelHitRadius();
+    const innerRadius = 20;
 
-    if (distanceFromCenter <= radius) {
+    // Si on clique au centre du donut, on ignore l'action
+    if (distanceFromCenter <= radius && distanceFromCenter >= innerRadius) {
       isDraggingWheel = true;
       startMouseAngle = Math.atan2(y, x);
       lastDragAngle = startMouseAngle;
@@ -1230,7 +1259,9 @@
     const y = e.clientY - rect.top - (canvas.height / 2);
     const distanceFromCenter = Math.sqrt(x * x + y * y);
     const radius = getWheelHitRadius();
-    if (distanceFromCenter > radius) {
+    const innerRadius = 20;
+    
+    if (distanceFromCenter > radius || distanceFromCenter < innerRadius) {
       closeAllContextMenus();
       return;
     }
@@ -1695,7 +1726,7 @@
       modalSubtitle.textContent = "Que souhaitez-vous faire ?";
       modalActions.innerHTML = `
         <button class="btn-secondary" id="keepBtn">Ne rien faire</button>
-        <button class="btn-danger" id="removeBtn">Supprimer la case</button>
+        <button class="btn-danger" id="removeBtn">Enlever la case</button>
       `;
 
       document.getElementById('keepBtn').addEventListener('click', () => modal.classList.remove('active'));
@@ -1746,7 +1777,6 @@
     sortedGroups.forEach(([key, group]) => {
       const isNextWin = key === "le prochain gagne";
       const li = document.createElement('li');
-      // Ajouts pour le menu contextuel
       li.dataset.key = key;
       li.dataset.text = group.text;
       
@@ -1754,9 +1784,11 @@
         li.classList.add('next-win-item');
       }
 
+      const badgeClass = group.count >= 3 ? 'badge-3' : (group.count === 2 ? 'badge-2' : (group.count === 1 ? 'badge-1' : 'badge-0'));
+
       const info = document.createElement('span');
       info.className = 'item-info';
-      info.innerHTML = `<span class="count-badge">(x${group.count})</span> ${group.text}`;
+      info.innerHTML = `<span class="count-badge ${badgeClass}">(x${group.count})</span> ${group.text}`;
 
       li.appendChild(info);
       activeList.appendChild(li);
@@ -1774,12 +1806,14 @@
         const realIndex = historyItems.length - 1 - indexFromReversed;
         const key = item.text.trim().toLowerCase();
         const wheelCount = items.filter(it => it.text.trim().toLowerCase() === key).length;
+        
+        const badgeClass = wheelCount >= 3 ? 'badge-3' : (wheelCount === 2 ? 'badge-2' : (wheelCount === 1 ? 'badge-1' : 'badge-0'));
+
         const li = document.createElement('li');
-        // Ajout du dataset index pour pouvoir le cibler avec le menu contextuel
         li.dataset.index = realIndex;
         li.innerHTML = `
           <div class="item-info">
-            <strong><span class="count-badge">(x${wheelCount})</span> ${item.text}</strong>
+            <strong><span class="count-badge ${badgeClass}">(x${wheelCount})</span> ${item.text}</strong>
             <span class="meta-date">${item.date}</span>
           </div>
         `;
@@ -1905,31 +1939,13 @@
     renderActiveList();
   });
 
+  // Action modifiée pour vider instantanément la roue sans confirmation
   clearActiveBtn.addEventListener('click', () => {
     if (items.length === 0 || isSpinning || isSuspense) return;
-    openConfirmModal(
-      'Vider la roue ?',
-      'Êtes-vous sûr de vouloir supprimer toutes les cases actuellement présentes sur la roue ?',
-      () => {
-        items = [];
-        saveState();
-        renderActiveList();
-        renderHistoryList();
-      }
-    );
-  });
-
-  clearHistoryBtn.addEventListener('click', () => {
-    if (historyItems.length === 0) return;
-    openConfirmModal(
-      'Effacer l\'historique ?',
-      'Êtes-vous sûr de vouloir supprimer définitivement tout l\'historique des cases ?',
-      () => {
-        historyItems = [];
-        saveState();
-        renderHistoryList();
-      }
-    );
+    items = [];
+    saveState();
+    renderActiveList();
+    renderHistoryList();
   });
 
   addAllHistoryBtn.addEventListener('click', addAllFromHistory);
