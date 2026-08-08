@@ -152,7 +152,7 @@
       justify-content: center;
       gap: 10px;
       width: 100%;
-      max-width: 500px;
+      max-width: 660px;
       margin: 0 auto;
     }
     .top-tools-bar, .settings-bar, .audio-settings-bar {
@@ -177,6 +177,11 @@
     .setting-box input[type="range"] {
       width: 100px;
       accent-color: var(--primary);
+    }
+    .duration-setting input[type="range"] {
+      width: 100%;
+      flex: 1;
+      margin-left: 15px;
     }
     .audio-settings-bar .setting-box {
       gap: 8px;
@@ -557,8 +562,8 @@
       <!-- Durée -->
       <div class="settings-bar">
         <div class="setting-box duration-setting">
-          <label for="durationInput">Durée: <strong id="durationVal">9s</strong></label>
-          <input type="range" id="durationInput" min="5" max="30" value="9">
+          <label for="durationInput" style="white-space: nowrap;">Durée: <strong id="durationVal">9s</strong></label>
+          <input type="range" id="durationInput" min="5" max="300" value="9">
         </div>
       </div>
 
@@ -578,7 +583,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.8.0 · kick.com/redkhey
+      Rouedah · version 0.9.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -693,23 +698,27 @@
   }
 
   function loadData(name) {
-    // 1. Chercher d'abord dans le LocalStorage
     const localItem = localStorage.getItem(name);
     if (localItem !== null) {
       return JSON.parse(localItem);
     }
     
-    // 2. Si non trouvé dans LocalStorage, chercher dans les anciens cookies
     const cookieItem = getOldCookie(name);
     if (cookieItem !== null) {
-      // Migration : on sauvegarde dans le LocalStorage et on supprime l'ancien cookie
       saveData(name, cookieItem);
       deleteCookie(name);
       return cookieItem;
     }
     
-    // 3. Si introuvable partout
     return null;
+  }
+
+  // Helper de formatage de la durée
+  function formatDurationText(seconds) {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
   }
 
   // --- Audio & Volumes ---
@@ -985,7 +994,7 @@
   const actionConfirmBtn = document.getElementById('actionConfirmBtn');
 
   durationInput.value = savedDuration;
-  durationVal.textContent = `${savedDuration}s`;
+  durationVal.textContent = formatDurationText(savedDuration);
   updateMuteUI();
 
   if (isNextWinActive) {
@@ -1002,7 +1011,7 @@
 
   durationInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value, 10);
-    durationVal.textContent = `${val}s`;
+    durationVal.textContent = formatDurationText(val);
     saveData('wheel_duration', val);
   });
 
@@ -1030,10 +1039,6 @@
 
   function getPastelColor(hue) {
     return `hsl(${hue}, 75%, 78%)`;
-  }
-
-  function fastStartEaseOut(t) {
-    return 1 - Math.pow(1 - t, 3.5);
   }
 
   function shuffleArray(array) {
@@ -1212,7 +1217,6 @@
     const radius = getWheelHitRadius();
     const innerRadius = 20;
 
-    // Si on clique au centre du donut, on ignore l'action
     if (distanceFromCenter <= radius && distanceFromCenter >= innerRadius) {
       isDraggingWheel = true;
       startMouseAngle = Math.atan2(y, x);
@@ -1266,7 +1270,7 @@
       return;
     }
     
-    closeAllContextMenus(); // Reset everything FIRST
+    closeAllContextMenus();
     
     const angle = Math.atan2(y, x);
     selectedSliceIndex = getSliceIndexAtAngle(angle, currentRotation, items.length);
@@ -1293,7 +1297,7 @@
     if (!li || isSpinning || isSuspense) return;
     e.preventDefault();
     
-    closeAllContextMenus(); // Reset everything FIRST
+    closeAllContextMenus();
     
     selectedHistoryIndex = parseInt(li.dataset.index, 10);
     
@@ -1307,7 +1311,7 @@
     if (!li || isSpinning || isSuspense) return;
     e.preventDefault();
     
-    closeAllContextMenus(); // Reset everything FIRST
+    closeAllContextMenus();
     
     selectedActiveKey = li.dataset.key;
     selectedActiveOriginalText = li.dataset.text;
@@ -1440,11 +1444,7 @@
     
     if (newText !== null && newText.trim() !== '') {
       const trimmed = newText.trim();
-      
-      // Update in history
       historyItems[index].text = trimmed;
-      
-      // Update in wheel
       items.forEach(item => {
         if (item.text.trim().toLowerCase() === currentKey) {
           item.text = trimmed;
@@ -1478,11 +1478,7 @@
     if (index === null || !historyItems[index]) return;
     
     const textToRemove = historyItems[index].text.trim().toLowerCase();
-    
-    // Remove from history
     historyItems.splice(index, 1);
-    
-    // Remove from wheel
     items = items.filter(it => it.text.trim().toLowerCase() !== textToRemove);
     assignHarmoniousColors(items);
     
@@ -1597,38 +1593,67 @@
     cancelNextWinBtn.style.display = 'none';
 
     let baseDuration = parseInt(durationInput.value, 10);
-    if (items.length < 5) {
-      const variation = (Math.random() * 4) - 2; 
-      baseDuration = Math.max(3, baseDuration + variation);
-    }
-
-    const jitterAmount = (Math.floor(Math.random() * 9) + 1) / 10;
-    const jitterSign = Math.random() < 0.5 ? -1 : 1;
-    baseDuration = Math.max(1, baseDuration + (jitterSign * jitterAmount));
-
     if (isNextWinActive) {
       baseDuration += 5;
     }
     
-    const durationMs = baseDuration * 1000;
-    const startTime = performance.now();
-    const minRounds = 3;
-    const maxRounds = Math.min(6, Math.floor(baseDuration * 0.6));
-    const baseRounds = Math.max(minRounds, maxRounds);
+    const T = baseDuration;
+    const omega = 10; // Vitesse de croisière constante (~1.6 tour/sec, identique à l'ancienne vitesse max)
     
+    // Détermination dynamique des phases d'accélération et de décélération
+    const t_acc = Math.min(1.0, T * 0.2);
+    const t_dec = Math.min(3.0, T * 0.5);
+    const t_const = Math.max(0, T - t_acc - t_dec);
+
+    // Biais aléatoire pour varier la case gagnante
     const randomTargetAngle = Math.random() * TWO_PI;
     const startAngle = currentRotation;
-    const totalRotationAngle = (baseRounds * TWO_PI) + randomTargetAngle;
-    
+
+    // Calcul de la distance d'angle théorique sous le profil [accel -> const -> decel]
+    const theta_acc = 0.5 * omega * t_acc;
+    const theta_const = omega * t_const;
+    const theta_dec = 0.5 * omega * t_dec;
+    const theta_nominal = theta_acc + theta_const + theta_dec;
+
+    // Ajustement de la distance totale pour atterrir sur l'angle cible exact
+    const currentEndMod = (startAngle + theta_nominal) % TWO_PI;
+    let deltaTarget = randomTargetAngle - currentEndMod;
+    if (deltaTarget < 0) deltaTarget += TWO_PI;
+
+    const totalRotationAngle = theta_nominal + deltaTarget;
+    const scaleFactor = totalRotationAngle / theta_nominal;
+
+    // Paramètres finaux profilés
+    const w = omega * scaleFactor;
+    const d_acc = theta_acc * scaleFactor;
+    const d_const = theta_const * scaleFactor;
+
+    const startTime = performance.now();
     let lastAnimRotation = startAngle;
     lastSliceIndex = -1;
 
     function animate(currentTime) {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / durationMs, 1);
-      const easeProgress = fastStartEaseOut(progress);
-      
-      const targetRotationNow = startAngle + (totalRotationAngle * easeProgress);
+      const elapsed = (currentTime - startTime) / 1000;
+      let angleOffset = 0;
+
+      if (elapsed < t_acc) {
+        // Phase 1 : Accélération progressive (Quadratique)
+        angleOffset = 0.5 * (w / t_acc) * Math.pow(elapsed, 2);
+      } else if (elapsed < t_acc + t_const) {
+        // Phase 2 : Vitesse constante
+        const t_c = elapsed - t_acc;
+        angleOffset = d_acc + (w * t_c);
+      } else if (elapsed < T) {
+        // Phase 3 : Décélération douce (Ease-Out)
+        const t_d = elapsed - t_acc - t_const;
+        const progressD = Math.min(t_d / t_dec, 1);
+        const easeOutFactor = 1 - Math.pow(1 - progressD, 2.5);
+        angleOffset = d_acc + d_const + ((totalRotationAngle - d_acc - d_const) * easeOutFactor);
+      } else {
+        angleOffset = totalRotationAngle;
+      }
+
+      const targetRotationNow = startAngle + angleOffset;
       const frameDeltaDeg = ((targetRotationNow - lastAnimRotation) * 180) / Math.PI;
       
       totalDeltaDegrees += frameDeltaDeg;
@@ -1646,7 +1671,7 @@
       }
       drawWheel();
       
-      if (progress < 1) {
+      if (elapsed < T) {
         requestAnimationFrame(animate);
       } else {
         winningIndex = getSliceIndexAtAngle(0, currentRotation, items.length);
@@ -1939,7 +1964,6 @@
     renderActiveList();
   });
 
-  // Action modifiée pour vider instantanément la roue sans confirmation
   clearActiveBtn.addEventListener('click', () => {
     if (items.length === 0 || isSpinning || isSuspense) return;
     items = [];
