@@ -583,7 +583,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.9.0 · kick.com/redkhey
+      Rouedah · version 0.10.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -639,6 +639,7 @@
   <div class="context-menu-item" id="aCtxEdit">Modifier</div>
   <div class="context-menu-separator"></div>
   <div class="context-menu-item danger" id="aCtxDelete">Enlever de la roue</div>
+  <div class="context-menu-item danger" id="aCtxDeleteAll">Tout enlever de la roue</div>
 </div>
 
 <div id="toastNotification" class="toast-notification">Notification</div>
@@ -895,6 +896,15 @@
     });
   }
 
+  // Fonction pour limiter l'historique à 100 éléments
+  function enforceHistoryLimit() {
+    if (historyItems.length > 100) {
+      // Garder uniquement les 100 plus récents
+      historyItems = historyItems.slice(-100);
+      saveState();
+    }
+  }
+
   // --- State Initialization ---
   let items = loadData('wheel_items') || [
     { id: 1, text: 'Dune : Deuxième Partie', date: '24/07/2026 00:00' },
@@ -904,6 +914,7 @@
   
   let rawHistory = loadData('wheel_history') || [...items];
   let historyItems = filterUniqueHistory(rawHistory);
+  enforceHistoryLimit(); // Application de la limite au chargement
   
   let savedDuration = loadData('wheel_duration') || 9;
   let isNextWinActive = loadData('wheel_next_win') === true;
@@ -981,6 +992,7 @@
   const aCtxImdb = document.getElementById('aCtxImdb');
   const aCtxTmdb = document.getElementById('aCtxTmdb');
   const aCtxDelete = document.getElementById('aCtxDelete');
+  const aCtxDeleteAll = document.getElementById('aCtxDeleteAll'); // Nouveau bouton ajouté
   
   const modal = document.getElementById('resultModal');
   const modalTitle = document.getElementById('modalTitle');
@@ -1315,6 +1327,9 @@
     
     selectedActiveKey = li.dataset.key;
     selectedActiveOriginalText = li.dataset.text;
+
+    // Compter le nombre de fois que la case est sur la roue
+    const count = items.filter(it => it.text.trim().toLowerCase() === selectedActiveKey).length;
     
     if (selectedActiveKey === "le prochain gagne") {
       aCtxEdit.classList.add('disabled');
@@ -1324,6 +1339,13 @@
       aCtxEdit.classList.remove('disabled');
       aCtxImdb.classList.remove('disabled');
       aCtxTmdb.classList.remove('disabled');
+    }
+
+    // Griser l'option "Tout enlever" si la case n'est présente qu'une seule fois (ou pas du tout)
+    if (count <= 1) {
+      aCtxDeleteAll.classList.add('disabled');
+    } else {
+      aCtxDeleteAll.classList.remove('disabled');
     }
 
     activeContextMenu.style.top = `${e.clientY}px`;
@@ -1554,6 +1576,21 @@
     removeOneActiveItem(key);
   });
 
+  // Action pour supprimer tous les doublons de la case de la roue
+  aCtxDeleteAll.addEventListener('click', () => {
+    const key = selectedActiveKey;
+    closeAllContextMenus();
+    if (!key) return;
+    
+    // Garde uniquement les items dont le texte ne correspond pas
+    items = items.filter(it => it.text.trim().toLowerCase() !== key);
+    assignHarmoniousColors(items);
+    
+    saveState();
+    renderActiveList();
+    renderHistoryList();
+  });
+
   function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -1573,6 +1610,11 @@
     shuffleBtn.disabled = true;
     doubleBtn.disabled = true;
     removeDuplicatesBtn.disabled = true;
+    durationInput.disabled = true;
+    itemInput.disabled = true;
+    addBtn.disabled = true;
+    addNextWinBtn.disabled = true;
+    clearActiveBtn.disabled = true;
 
     shuffleArray(items);
     saveState();
@@ -1687,6 +1729,11 @@
           doubleBtn.disabled = false;
           removeDuplicatesBtn.disabled = false;
           cancelNextWinBtn.style.display = 'block';
+          durationInput.disabled = false;
+          itemInput.disabled = false;
+          addBtn.disabled = false;
+          addNextWinBtn.disabled = false;
+          clearActiveBtn.disabled = false;
           determineWinner();
         }, 1200);
       }
@@ -1866,6 +1913,7 @@
         const textLower = text.trim().toLowerCase();
         if (!historyItems.some(h => h.text.trim().toLowerCase() === textLower)) {
           historyItems.push(newItem);
+          enforceHistoryLimit(); // Application de la limite après un ajout dans l'historique
         }
     }
     if (!textToAdd) itemInput.value = '';
