@@ -1,5 +1,5 @@
 ## Rouedah
-- version en beta : **0.11.0**
+- version en beta : **0.11.1**
 - code source : [index.html](index.html)
 - tester directement : [par ici](https://rouedah.flens.dev/)
 
