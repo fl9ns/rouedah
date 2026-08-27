@@ -9,7 +9,7 @@
       --bg-color: #0f172a;       /* Slate 900 */
       --card-bg: #1e293b;        /* Slate 800 */
       --card-border: #334155;    /* Slate 700 */
-      --primary: #6366f1;       /* Indigo */
+      --primary: #6366f1;        /* Indigo */
       --primary-hover: #4f46e5;
       --text: #f8fafc;
       --text-muted: #94a3b8;
@@ -106,7 +106,7 @@
       padding: 16px 28px;
       border-radius: 16px;
       font-weight: 800;
-      font-size: 1.3rem;
+      font-size: 1.5rem;
       letter-spacing: 0.5px;
       box-shadow: 0 0 30px rgba(239, 68, 68, 0.8);
       pointer-events: none;
@@ -128,28 +128,6 @@
       0% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); transform: translate(-50%, -50%) scale(1); }
       50% { box-shadow: 0 0 40px rgba(239, 68, 68, 1); transform: translate(-50%, -50%) scale(1.05); }
       100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); transform: translate(-50%, -50%) scale(1); }
-    }
-
-    .cancel-next-win {
-      background: #0f172a;
-      color: #f8fafc;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
-      padding: 4px 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      pointer-events: none;
-      transition: all 0.2s;
-      text-transform: none;
-    }
-    .next-win-overlay.active .cancel-next-win {
-      pointer-events: auto;
-    }
-    .cancel-next-win:hover {
-      background: #1e293b;
-      border-color: #f8fafc;
-      transform: scale(1.05);
     }
 
     .controls-row {
@@ -217,21 +195,35 @@
       border-color: rgba(239, 68, 68, 0.4);
       background: rgba(239, 68, 68, 0.1);
     }
+    
     .action-buttons-group {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 80px 1fr 80px;
       align-items: center;
-      gap: 10px;
       width: 100%;
       margin-bottom: 15px;
       padding: 0 5px;
     }
+    .spin-actions-wrapper {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    
     .stat-badge {
       font-size: 0.95rem;
       font-weight: 600;
       color: var(--text-muted);
       white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
+    #spinCounterDisplay {
+      text-align: left;
+    }
+    #turnsCounterDisplay {
+      text-align: right;
+    }
+    
     #spinBtn {
       width: auto;
       flex: 1;
@@ -239,6 +231,32 @@
       height: 44px;
       padding: 0 20px;
     }
+    
+    #cancelNextWinBtn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: white;
+      height: 44px;
+      width: 44px;
+      flex: none;
+      padding: 0;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+      transition: all 0.2s;
+    }
+    #cancelNextWinBtn:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: #ef4444;
+    }
+    #cancelNextWinBtn:disabled {
+      background: rgba(255, 255, 255, 0.02);
+      border-color: var(--card-border);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
     button {
       background: var(--primary);
       color: white;
@@ -285,7 +303,7 @@
     }
     
     .panel-history {
-      flex: 1;           
+      flex: 1;         
       min-height: 0;     
     }
     .panel-add {
@@ -596,7 +614,10 @@
   <div class="wheel-section">
     <div class="action-buttons-group">
       <span id="spinCounterDisplay" class="stat-badge" title="nombre de lancer">0</span>
-      <button id="spinBtn">Mélanger et lancer la roue</button>
+      <div class="spin-actions-wrapper">
+        <button id="spinBtn">Mélanger et lancer la roue</button>
+        <button id="cancelNextWinBtn" title="Annuler le mode 'Le prochain gagne'">❌</button>
+      </div>
       <span id="turnsCounterDisplay" class="stat-badge" title="nombre de tour">0,00</span>
     </div>
 
@@ -604,7 +625,6 @@
       <div class="wheel-wrapper">
         <div id="nextWinOverlay" class="next-win-overlay">
           Le prochain gagne
-          <button id="cancelNextWinBtn" class="cancel-next-win">Annuler</button>
         </div>
         <div class="arrow"></div>
         <canvas id="wheel" width="660" height="660"></canvas>
@@ -643,7 +663,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.11.2 · kick.com/redkhey
+      Rouedah · version 0.12.1 · kick.com/redkhey
     </div>
   </div>
 
@@ -657,7 +677,10 @@
       <input type="text" id="itemInput" placeholder="Intitulé..." />
       <button id="addBtn" style="width: auto;">Ajouter</button>
     </div>
-    <button id="addNextWinBtn" class="btn-secondary-action" style="width: 100%; margin-top: 10px; border-color: #f59e0b; color: #fcd34d;">Ajouter "Le prochain gagne"</button>
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+      <button id="addNextWinBtn" class="btn-secondary-action" style="flex: 1; border-color: #f59e0b; color: #fcd34d;">Ajouter "Le prochain gagne"</button>
+      <button id="activateNextWinBtn" class="btn-secondary-action" style="width: 44px; flex: none; font-size: 1.1rem; padding: 0; border-color: #ef4444; color: #f87171;" title="Activer directement le mode Le prochain gagne">🏆</button>
+    </div>
     
     <h4 style="margin-top:15px;">Cases sur la roue (<span id="count">0</span>)</h4>
     <ul id="activeList"></ul>
@@ -1050,6 +1073,7 @@
   const muteBtn = document.getElementById('muteBtn');
   const addBtn = document.getElementById('addBtn');
   const addNextWinBtn = document.getElementById('addNextWinBtn');
+  const activateNextWinBtn = document.getElementById('activateNextWinBtn');
   const cancelNextWinBtn = document.getElementById('cancelNextWinBtn');
   const itemInput = document.getElementById('itemInput');
   const activeList = document.getElementById('activeList');
@@ -1100,7 +1124,36 @@
 
   if (isNextWinActive) {
     nextWinOverlay.classList.add('active');
+    cancelNextWinBtn.style.display = 'block';
+    cancelNextWinBtn.disabled = false;
+    addNextWinBtn.disabled = true;
+    activateNextWinBtn.disabled = true;
+  } else {
+    cancelNextWinBtn.style.display = 'none';
+    cancelNextWinBtn.disabled = true;
+    addNextWinBtn.disabled = false;
+    activateNextWinBtn.disabled = false;
   }
+
+  // --- LOGIQUE "Le prochain gagne" ---
+  activateNextWinBtn.addEventListener('click', () => {
+    isNextWinActive = true;
+    saveData('wheel_next_win', true);
+    nextWinOverlay.classList.add('active');
+    showToast("Mode 'Le prochain gagne' activé !");
+    
+    // Nettoyer les éventuelles cases déjà sur la roue
+    items = items.filter(item => item.text.trim().toLowerCase() !== "le prochain gagne");
+    assignHarmoniousColors(items);
+    saveState();
+    renderActiveList();
+    
+    // MAJ UI
+    cancelNextWinBtn.style.display = 'block';
+    cancelNextWinBtn.disabled = false;
+    addNextWinBtn.disabled = true;
+    activateNextWinBtn.disabled = true;
+  });
 
   cancelNextWinBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1108,6 +1161,12 @@
     saveData('wheel_next_win', false);
     nextWinOverlay.classList.remove('active');
     showToast("Mode 'Le prochain gagne' annulé.");
+    
+    // MAJ UI
+    cancelNextWinBtn.style.display = 'none';
+    cancelNextWinBtn.disabled = true;
+    addNextWinBtn.disabled = false;
+    activateNextWinBtn.disabled = false;
   });
 
   durationInput.addEventListener('input', (e) => {
@@ -1695,6 +1754,8 @@
     itemInput.disabled = true;
     addBtn.disabled = true;
     addNextWinBtn.disabled = true;
+    activateNextWinBtn.disabled = true;
+    cancelNextWinBtn.disabled = true;
     clearActiveBtn.disabled = true;
 
     shuffleArray(items);
@@ -1713,7 +1774,6 @@
     await wait(500);
 
     isSpinning = true;
-    cancelNextWinBtn.style.display = 'none';
 
     let baseDuration = parseInt(durationInput.value, 10);
     if (isNextWinActive) {
@@ -1801,11 +1861,20 @@
           shuffleBtn.disabled = false;
           doubleBtn.disabled = false;
           removeDuplicatesBtn.disabled = false;
-          cancelNextWinBtn.style.display = 'block';
           durationInput.disabled = false;
           itemInput.disabled = false;
           addBtn.disabled = false;
-          addNextWinBtn.disabled = false;
+          
+          if (isNextWinActive) {
+            cancelNextWinBtn.disabled = false;
+            activateNextWinBtn.disabled = true;
+            addNextWinBtn.disabled = true;
+          } else {
+            cancelNextWinBtn.disabled = true;
+            activateNextWinBtn.disabled = false;
+            addNextWinBtn.disabled = false;
+          }
+          
           clearActiveBtn.disabled = false;
           determineWinner();
         }, 1200);
@@ -1824,6 +1893,10 @@
       isNextWinActive = true;
       saveData('wheel_next_win', true);
       nextWinOverlay.classList.add('active');
+      cancelNextWinBtn.style.display = 'block'; 
+      cancelNextWinBtn.disabled = false; 
+      addNextWinBtn.disabled = true; 
+      activateNextWinBtn.disabled = true;
       showToast("Le prochain gagne est activé !");
       
       items = items.filter(item => item.text.trim().toLowerCase() !== "le prochain gagne");
@@ -1839,6 +1912,10 @@
         isNextWinActive = false;
         saveData('wheel_next_win', false);
         nextWinOverlay.classList.remove('active');
+        cancelNextWinBtn.style.display = 'none';
+        cancelNextWinBtn.disabled = true;
+        addNextWinBtn.disabled = false;
+        activateNextWinBtn.disabled = false;
       }
 
       modalTitle.textContent = "🎉 Victoire !";
