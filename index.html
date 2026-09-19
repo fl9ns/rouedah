@@ -663,7 +663,7 @@
     </div>
 
     <div class="app-version">
-      Rouedah · version 0.12.1 · kick.com/redkhey
+      Rouedah · version 0.13.0 · kick.com/redkhey
     </div>
   </div>
 
@@ -2051,21 +2051,39 @@
     }
     const text = textToAdd || itemInput.value.trim();
     if (!text) return;
+    
+    const newDate = new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
     const newItem = {
       id: Date.now() + Math.random(),
       text: text,
-      date: new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+      date: newDate
     };
+    
     items.push(newItem);
     assignHarmoniousColors(items);
     
     if (text.trim().toLowerCase() !== "le prochain gagne") {
         const textLower = text.trim().toLowerCase();
-        if (!historyItems.some(h => h.text.trim().toLowerCase() === textLower)) {
+        
+        // On cherche si l'élément existe déjà dans l'historique (insensible à la casse)
+        const existingIndex = historyItems.findIndex(h => h.text.trim().toLowerCase() === textLower);
+        
+        if (existingIndex !== -1) {
+          // L'élément existe : on l'enlève de sa position actuelle
+          const existingItem = historyItems.splice(existingIndex, 1)[0];
+          // On met à jour sa date et on rafraîchit la casse du texte avec la nouvelle saisie
+          existingItem.date = newDate;
+          existingItem.text = text;
+          // On le replace à la fin du tableau (sera affiché en haut car la liste est inversée)
+          historyItems.push(existingItem);
+        } else {
+          // Nouvel élément, on l'ajoute simplement
           historyItems.push(newItem);
-          enforceHistoryLimit();
         }
+        
+        enforceHistoryLimit();
     }
+    
     if (!textToAdd) itemInput.value = '';
     saveState();
     renderActiveList();
